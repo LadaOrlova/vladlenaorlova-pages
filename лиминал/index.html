@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Лиминальные пространства — курс о жизненных переходах</title>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #1b2820;
+  --muted: #43584a;
+  --paper: #f8f7ed;
+  --space: #e6ead8;
+  --panel-width: 66rem;
+  --edge: clamp(1rem, 6vw, 6rem);
+  --serif: Georgia, serif;
+}
+* { box-sizing: border-box }
+html { scroll-behavior: smooth }
+body { margin: 0; isolation: isolate; color: var(--ink); background: var(--space); font: 1.0625rem/1.72 system-ui, sans-serif }
+a { color: inherit; text-underline-offset: .25em }
+:focus-visible { outline: 2px solid #3a624a; outline-offset: 5px }
+[hidden] { display: none !important }
+.mist { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(circle, #647f6c 0.62px, transparent .85px) 0 0 / 4px 4px, var(--space) }
+.mist canvas { display: block; width: 100%; height: 100% }
+.wrap { width: min(86rem, calc(100% - 2 * var(--edge))); margin-inline: auto }
+.hero {
+  overflow-x: clip;
+  min-height: 93svh;
+  display: grid;
+  align-items: center;
+  padding-block: 5rem;
+  background: radial-gradient(ellipse 65% 88% at 10% 47%, #eff0e1 18%, #eff0e1e8 55%, transparent 100%);
+}
+.hero-content { max-width: 46rem }
+h1, h2 { font: 400 1em/1.06 var(--serif) }
+h1 { font-size: clamp(2.55rem, 8.1vw, 7.5rem); letter-spacing: -.042em; margin: 0 0 .28em }
+#cover-title { position: relative; width: fit-content; max-width: 100% }
+.title-warp { position: absolute; display: block; pointer-events: none }
+#cover-title[data-warp] { color: transparent }
+h2 { font-size: clamp(1.95rem, 4.35vw, 4rem); letter-spacing: -.032em; margin: 0 0 .72em; text-wrap: balance }
+.cta { display: inline-flex; align-items: center; min-height: 44px; font-size: .95rem }
+.personal-intro {
+  width: min(100%, var(--panel-width));
+  margin: 0 auto clamp(3rem, 12svh, 8rem);
+  padding: clamp(1.35rem, 5vw, 4rem);
+  scroll-margin-top: 1.5rem;
+  background: var(--paper);
+  border: 1px solid #ffffffb8;
+  border-radius: clamp(1.25rem, 3vw, 2.4rem);
+  box-shadow: 0 1.5rem 4rem #283e2c29;
+}
+.personal-intro > p { max-width: 57ch; margin-block: 0 1em }
+.personal-intro > p:last-of-type { font: 400 clamp(1.25rem, 2.8vw, 1.65rem)/1.4 var(--serif) }
+.term-note { margin-top: 2rem; color: var(--muted); font-size: .95rem }
+.term-note h3 { margin: 0 0 .35rem; color: var(--ink); font: 400 1.35rem/1.3 var(--serif) }
+.term-note p { max-width: 54ch; margin: 0 }
+.term-note small { display: block; margin-top: .35rem; font-size: .875rem }
+.course { padding-bottom: clamp(6rem, 12vw, 10rem) }
+.course-tools { width: min(100%, var(--panel-width)); margin-inline: auto; position: sticky; top: 1rem; z-index: 2; display: flex; justify-content: flex-end; height: 0; margin-bottom: clamp(4rem, 14svh, 10rem) }
+.course-tools details { position: relative; align-self: start; color: var(--ink); background: var(--paper); box-shadow: 0 4px 20px #293d2922 }
+.course-tools summary { padding: .58rem .85rem; cursor: pointer; min-height: 44px; font-size: .875rem }
+.course-tools nav { position: absolute; width: min(21rem, calc(100vw - 2 * var(--edge))); right: 0; padding: .6rem 1rem; background: var(--paper); box-shadow: 0 12px 35px #293d292e; max-height: 74svh; overflow: auto }
+.course-tools a, .motion-control { display: flex; align-items: center; min-height: 44px; font-size: .875rem }
+.course-tools a { text-decoration: none }
+.course-tools a:hover, .course-tools a[aria-current="location"] { text-decoration: underline }
+.motion-control { padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: .25em }
+article section {
+  width: min(100%, var(--panel-width));
+  margin-inline: auto;
+  padding: clamp(1.35rem, 5vw, 4rem);
+  background: var(--paper);
+  border: 1px solid #ffffffb8;
+  border-radius: clamp(1.25rem, 3vw, 2.4rem);
+  box-shadow: 0 1.5rem 4rem #283e2c29, inset 0 1px 0 #fffc;
+  scroll-margin-top: 5rem;
+  overflow-wrap: break-word;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media screen {
+    article section, .personal-intro {
+      background: linear-gradient(145deg, #fffdf3db, #f8faefb8);
+      -webkit-backdrop-filter: blur(18px) saturate(1.08);
+      backdrop-filter: blur(18px) saturate(1.08);
+    }
+  }
+}
+article section + section { margin-top: clamp(5rem, 19svh, 13rem) }
+article p { max-width: 61ch }
+.label { color: var(--muted); font-size: .875rem; margin: 0 0 1.05rem }
+blockquote { margin: 2.1rem 0; padding-inline-start: clamp(.8rem, 2.5vw, 1.45rem); border-inline-start: 1px solid #85998a }
+blockquote p { margin: .32rem 0 }
+blockquote [lang=en], .source { color: var(--muted); font-size: .875rem }
+.translation { font: 1.35rem/1.4 var(--serif) }
+.exercise { margin-top: 2.2rem }
+.space-image { margin: 1.1rem 0 1.6rem }
+.space-image img {
+  display: block;
+  width: 100%;
+  max-height: 33rem;
+  object-fit: contain;
+  border-radius: .65rem;
+}
+#spaces h2 { max-width: 20ch }
+.example-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(86%, 45rem);
+  gap: clamp(.9rem, 2vw, 1.8rem);
+  margin: 1.5rem 0;
+  padding: 1.1rem .7rem 2rem;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  position: relative;
+  scrollbar-color: #647e6a #e4eadb;
+}
+.example-strip li { min-width: 0; scroll-snap-align: start }
+.example-strip li:last-child { scroll-snap-align: end }
+.example-card {
+  min-height: 100%;
+  padding: clamp(.85rem, 2.5vw, 1.65rem);
+  border: 1px solid #ffffffba;
+  border-radius: clamp(1rem, 2.5vw, 1.7rem);
+  background: linear-gradient(155deg, #fffdf5ed, #eaf1e2d9);
+  box-shadow: 0 .8rem 1.4rem #3753442b;
+  transform: translateY(var(--card-lift, 0px)) rotate(var(--card-tilt, 0deg)) scale(var(--card-scale, 1));
+  transform-origin: center 32%;
+}
+@media (prefers-reduced-motion: reduce), print {
+  .example-card { transform: none }
+}
+.example-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem 1rem; margin-top: 1.3rem }
+.example-controls div { display: flex; gap: .5rem }
+.example-controls button {
+  min-height: 44px; padding: .4rem .85rem; font: inherit; font-size: .875rem;
+  color: var(--ink); background: #f8f7eb; border: 1px solid #647e6a; border-radius: .55rem; cursor: pointer;
+}
+.example-controls button:hover:not(:disabled) { background: #dce6d7 }
+.example-controls button:disabled { opacity: .5; cursor: default }
+@media print { .example-controls { display: none } }
+.example-strip h3 { min-height: 3.3em; margin: 0; font: 400 clamp(1rem, 2vw, 1.45rem)/1.2 var(--serif) }
+.example-strip img { height: auto; aspect-ratio: 16 / 10; background: #e2e7d7 }
+@media print {
+  .example-strip { display: block; overflow: visible }
+  .example-strip li { break-inside: avoid }
+}
+.space-image figcaption { margin-top: .55rem; color: var(--muted); font-size: .875rem }
+.chapter-reading { margin-block: 2rem; border-block: 1px solid #76917d75 }
+.chapter-reading summary { min-height: 44px; padding-block: .7rem; cursor: pointer; font-weight: 650 }
+.chapter-reading summary:hover { text-decoration: underline }
+.chapter-reading h3 { font: 400 1.45rem/1.25 var(--serif); margin: 1.75rem 0 .65rem }
+.chapter-reading blockquote { margin-block: .9rem 1.25rem }
+.chapter-reading .source { margin-bottom: 1.25rem }
+footer { padding-bottom: 2rem }
+footer a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: .7rem; background: var(--paper); font-size: .875rem }
+@supports (animation-timeline: view()) {
+  @media screen and (prefers-reduced-motion: no-preference) {
+    .personal-intro, article section {
+      animation: panel-passage linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    @keyframes panel-passage {
+      entry 0% { scale: .94; animation-timing-function: ease-out }
+      entry 60%, exit 22% { scale: 1 }
+      exit 100% { scale: .94 }
+    }
+  }
+}
+@media (max-width: 800px) {
+  .hero { min-height: 88svh; background: radial-gradient(ellipse 130% 66% at 10% 48%, #eff0e1 24%, #eff0e1df 58%, transparent 100%) }
+  article section + section { margin-top: 5.5rem }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } }
+@media print {
+  body, .hero, article section, .personal-intro { background: white; color: black }
+  .hero { min-height: auto; padding: 0 }
+  .mist, .course-tools, .cta, footer { display: none }
+  .course { padding: 0 }
+  .personal-intro { width: 100%; margin: 0 0 1.6rem; padding: 0; border: 0; box-shadow: none }
+  article section { width: 100%; margin-inline: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none }
+  article section + section { margin-top: 1.6rem }
+}
+</style>
+</head>
+<body id="top">
+<div class="mist" aria-hidden="true"><canvas id="dot-screen"></canvas></div>
+<header class="hero">
+<div class="wrap">
+
+<div class="hero-content">
+<h1 id="cover-title">Лиминальные<br>пространства</h1>
+<a class="cta" href="#personal-intro">Начать читать</a>
+</div>
+</div>
+</header>
+<main class="wrap course">
+<section id="personal-intro" class="personal-intro" aria-labelledby="personal-title" tabindex="-1">
+<h2 id="personal-title">Мне кажется, я попала в лиминальное пространство.</h2>
+<p>Я прожила четыре месяца дома на Урале. Гуляла в своих местах силы и выбирала квартиру. Точнее, пыталась понять, в какой квартире мне самой хочется жить. Постепенно я пересмотрела свои представления о том, какой она должна быть. В день, когда я её купила, я потеряла работу. Потом сдала квартиру и через пару недель вернулась в Москву.</p>
+<p>В московской квартире я живу уже три года, но после возвращения увидела её чужими глазами. Или новыми? Я не сразу вспомнила, как зажигать плиту, на каком этаже живу и как называются станции метро. Как будто в мою жизнь приехал другой человек.</p>
+<p>Поездка многое во мне изменила. Я больше не влезаю в свою старую жизнь, и она как будто потихоньку рушится. Какой будет новая, я пока не знаю.</p>
+<p>Место, где я оказалась, — лиминальное пространство.</p>
+<aside id="term-note" class="term-note" aria-labelledby="term-title">
+<h3 id="term-title"><i lang="la">limen</i> — порог</h3>
+<p>В антропологии лиминальность — фаза обряда, когда прежняя роль оставлена, а новая ещё не получена. <small><a href="https://press.uchicago.edu/ucp/books/book/chicago/R/bo38180827.html">Ван Геннеп, «Обряды перехода»</a></small></p>
+</aside>
+</section>
+<aside class="course-tools" aria-label="Оглавление"><details><summary>Содержание</summary><nav aria-label="Разделы курса">
+<a href="#spaces">Пространства в играх, кино и искусстве</a>
+<a href="#threshold">Что значит быть в лиминальном пространстве</a>
+<a href="#feelings">Что мы чувствуем в переходе</a>
+<a href="#homecoming">Почему знакомое место ощущается иначе</a>
+<a href="#liminoid">От обряда к игре</a>
+<a href="#architecture">Как пространство создаёт ощущение порога</a>
+<a href="#backrooms">Backrooms. Как пустая комната стала целым миром</a>
+<a href="#prolonged">Когда у перехода нет известного срока</a>
+<a href="#story">Главы вашей жизни</a>
+<a href="#support">Опоры перехода</a>
+<a href="#desire">Чего хочется больше</a>
+<a href="#trial">Возможные уклады</a>
+<a href="#experiment">Как попробовать новое</a>
+<a href="#ritual">Обряд перехода</a>
+<a href="#reading">Источники</a>
+<button class="motion-control" type="button" hidden>Остановить фон</button>
+</nav></details></aside>
+<article>
+<section id="spaces" tabindex="-1">
+
+<h2>Лиминальные пространства в играх, кино и искусстве</h2>
+<p>В этой галерее «лиминальное пространство» — название эстетики знакомых мест, которые кажутся странными: пустого бассейна, повторяющегося коридора, ночного кафе за стеклом. Дальше у термина будут два других значения. У Тёрнера лиминальность — положение участника обряда между двумя статусами. У Стеннера — опыт перехода, в котором привычный порядок жизни приостанавливается или нарушается. <a href="#threshold">Лиминальность в антропологии</a> · <a href="#feelings">Опыт жизненного перехода</a>.</p>
+
+<div class="example-controls" hidden>
+<div><button type="button" data-direction="-1" aria-controls="example-strip">Назад</button><button type="button" data-direction="1" aria-controls="example-strip">Дальше</button></div>
+</div>
+<ul id="example-strip" class="example-strip" tabindex="0" aria-label="Примеры. Прокручивайте вбок">
+<li><div class="example-card"><h3><i>Dreamcore</i> · игра</h3>
+<figure class="space-image">
+<img src="https://www.dreamcoregame.com/map-screenshots/DREAMPOOLS/D_05.webp" alt="Белый плиточный бассейн, колонны и арки, за которыми видны другие помещения" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Скриншот из Dreampools. За арками видны новые помещения, и каждое кажется возможным продолжением пути. <a href="https://www.dreamcoregame.com/">Сайт игры</a>.</figcaption>
+</figure>
+<p>В Dreampools знакомые детали бассейна складываются в лабиринт. Лестницы, арки и колонны помогают понять, где вы стоите, но повторяются в следующих залах. Повторение деталей делает залы похожими друг на друга, и по знакомой арке уже трудно понять, бывали ли вы именно здесь. <a href="https://www.xbox.com/en-us/games/store/dreamcore/9PCW3DR9GLFB">Xbox Series X|S</a>.</p></div></li>
+<li><div class="example-card"><h3>Кино. Андрей Тарковский, «Сталкер»</h3>
+<figure class="space-image">
+<img src="https://resizer.mail.ru/p/c91126c0-6ff4-5076-8613-5fed4e9db8f1/AAACQ415fr6uRKCTSBpLihHzhXUUKle99ZIe_7NDDZFvAVvTqwnKq-0bFNWnwWDjk9g0YzuF8uv1KB8Kij9BZDHMyF0.jpg" alt="Герои «Сталкера» на дрезине среди заросших железнодорожных путей" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Кадр из «Сталкера», 1979. Обратите внимание на уходящие вдаль рельсы. <a href="https://kino.mail.ru/cinema/movies/432352_stalker/">Кадры к фильму</a>.</figcaption>
+</figure>
+<p>Долгая поездка на дрезине отделяет город от Зоны. В фильме город снят в сепии, а в Зоне появляется цвет. Повторяющийся звук колёс и продолжительность сцены придают самой дороге вес. Переход успевает стать отдельным эпизодом. <a href="https://www.bfi.org.uk/film/0ee193c2-080e-5ff8-9d4b-842cffd8e53a/stalker">Карточка фильма в BFI</a> · <a href="https://www.bfi.org.uk/features/andrei-tarkovsky-stalker-locations">Разбор пространства и цвета</a>.</p></div></li>
+<li><div class="example-card"><h3>Игра. <i>The Exit 8</i></h3>
+<figure class="space-image">
+<img src="https://www.videogameschronicle.com/files/2023/11/the-exit-8.jpg" alt="Длинный подземный переход" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>The Exit 8. <a href="https://www.videogameschronicle.com/news/a-new-liminal-horror-game-has-players-trying-to-escape-an-endless-japanese-subway/">VGC</a>.</figcaption>
+</figure>
+<p>Подземный переход повторяется, и мелкие отклонения в знакомом коридоре подсказывают, когда идти дальше, а когда повернуть назад. <a href="https://www.xbox.com/en-us/games/store/63700269/9MWLQQK52CPP">Xbox Series X|S</a>.</p></div></li>
+<li><div class="example-card"><h3>Кино. Хаяо Миядзаки, «Унесённые призраками»</h3>
+<figure class="space-image">
+<img src="https://pbs.twimg.com/media/FIgYzx5agAk9zBc.jpg" alt="Вход в тоннель в красной стене, окружённый зеленью" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Кадр из «Унесённых призраками», 2001. Тоннель связывает два мира. <a href="https://x.com/yolice_221B/status/1479459768226160640">Источник кадра</a>.</figcaption>
+</figure>
+<p>По дороге в новый дом Тихиро и её родители проходят по тоннелю и попадают в место, которое кажется заброшенным. За пустыми рядами постепенно обнаруживается мир духов со своими правилами. Тоннель уже пройден, когда становится ясно, куда он привёл. <a href="https://gkids.com/films/spirited-away/">Синопсис прокатчика GKIDS</a>.</p>
+</div></li>
+<li><div class="example-card"><h3>Игра. <i>Journey</i></h3>
+<figure class="space-image">
+<img src="https://img.playstationtrophies.org/images/screenshots/3570/1_1437471569.1.jpg" alt="Путник на песчаном склоне и далёкая горная вершина с лучом света" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Скриншот Journey. Вершина видна издалека, а дорогу к ней ещё предстоит найти. <a href="https://www.playstationtrophies.org/game/journey-ps4/screenshots/">Галерея скриншотов</a>.</figcaption>
+</figure>
+<p>Посреди пустыни видна далёкая вершина. Она задаёт общее направление, а путь через песок и руины вы ищете сами. Вершина видна задолго до того, как становится понятен путь. Пространство игры удерживает эту разницу между ориентиром и маршрутом. <a href="https://thatgamecompany.com/journey/">Описание игры от thatgamecompany</a>.</p></div></li>
+<li><div class="example-card"><h3>Игра. <i>POOLS</i></h3>
+<figure class="space-image">
+<img src="https://poolsthegame.com/pools-game-images/84.webp" alt="Две цветные водные горки над тёмным бассейном в пустом белом зале" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Скриншот из POOLS. Обратите внимание на горки и лестницу, рассчитанные на людей, которых в зале нет. <a href="https://poolsthegame.com/media/7/">Галерея игры</a>.</figcaption>
+</figure>
+<p>В пустом бассейне всё приготовлено для движения. Видны поручни, лестницы и горки, а вместо обычного шума слышны шаги и вода. Место легко узнать по предметам. Отсутствие людей и обычных звуков бассейна делает его непривычным. <a href="https://poolsthegame.com/">Сайт игры</a>.</p></div></li>
+<li><div class="example-card"><h3>Игра. <i>Superliminal</i></h3>
+<figure class="space-image">
+<img src="https://cdn.mos.cms.futurecdn.net/ReFv6yZgpAo2VAHM48Zhai.jpg" alt="Комната с предметами необычного масштаба" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Superliminal. <a href="https://www.gamesradar.com/perspective-is-the-core-concept-in-conversation-with-pillow-castle-games-ahead-of-superliminals-ps4-release/">GamesRadar+</a>.</figcaption>
+</figure>
+<p>Во сне перспектива становится правилом пространства. Один и тот же предмет может казаться маленьким или огромным в зависимости от точки зрения. <a href="https://www.xbox.com/en-gb/games/store/superliminal/9nvr4zqknbsb">Xbox One и Series X|S</a>.</p></div></li>
+<li><div class="example-card"><h3>Игра. <i>Backrooms от Puppet Combo</i></h3>
+<figure class="space-image">
+<img src="https://i.ytimg.com/vi/0S4QmSpRDBE/hqdefault.jpg" alt="Превью трейлера Backrooms от Puppet Combo" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Backrooms от Puppet Combo. <a href="https://www.youtube.com/watch?v=0S4QmSpRDBE">Трейлер Puppet Combo</a>.</figcaption>
+</figure>
+<p>Тревожный вариант: обычный путь домой приводит героя в невозможное пространство, откуда он пытается выбраться. <a href="https://www.xbox.com/en-US/games/store/backrooms/9NM6WPNZRL75">Xbox One и Series X|S</a>.</p></div></li>
+<li><div class="example-card"><h3>Игра. <i>Viewfinder</i></h3>
+<figure class="space-image">
+<img src="https://images.purexbox.com/adf8e01b9d820/1280x720.jpg" alt="Сюрреалистическое пространство из Viewfinder" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Viewfinder. <a href="https://www.purexbox.com/games/xbox-series-x/viewfinder">Pure Xbox</a>.</figcaption>
+</figure>
+<p>Фотография, помещённая в сцену, становится частью мира. Здесь граница между изображением и пространством буквально превращается в маршрут. <a href="https://www.xbox.com/en-US/games/store/x/9NJCVSSSX3R9">Xbox Series X|S</a>.</p></div></li>
+<li><div class="example-card"><h3>Живопись. Эдвард Хоппер, <i>Nighthawks</i></h3>
+<figure class="space-image">
+<img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Hopper_Nighthawks.jpg/960px-Hopper_Nighthawks.jpg?utm_campaign=index&amp;utm_content=thumbnail&amp;utm_source=commons.wikimedia.org" alt="Освещённое ночное кафе за сплошным стеклом на тёмном углу улицы" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Эдвард Хоппер, Nighthawks, 1942. Стекло тянется вдоль всего угла, вход в кадре не виден. <a href="https://archive.artic.edu/hopper/artwork/111628">Art Institute of Chicago</a>. <a href="https://commons.wikimedia.org/wiki/File:Hopper_Nighthawks.jpg">Открыть репродукцию</a>.</figcaption>
+</figure>
+<p>Ярко освещённое ночное кафе видно с улицы. Вы различаете людей и стойку, а вход в кафе художник оставляет за пределами видимого. Стекло позволяет видеть происходящее внутри и создаёт границу между кафе и зрителем. В таком прочтении порог возникает из положения зрителя: вы достаточно близко, чтобы наблюдать, но не можете присоединиться к происходящему. <a href="https://archive.artic.edu/hopper/artwork/111628">Картина и комментарий Чикагского института искусств</a>.</p></div></li>
+<li><div class="example-card"><h3>Живопись. Джорджо де Кирико, «Тайна и меланхолия улицы»</h3>
+<figure class="space-image">
+<img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Giorgio_de_Chirico_-_Myst%C3%A8re_et_m%C3%A9lancolie_d%27une_rue.jpg/500px-Giorgio_de_Chirico_-_Myst%C3%A8re_et_m%C3%A9lancolie_d%27une_rue.jpg" alt="Фигура с обручем у аркады и длинная тень на пустой улице" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+<figcaption>Джорджо де Кирико, «Тайна и меланхолия улицы», 1914. Посмотрите, где заканчивается видимое и начинается то, о чём можно только догадываться. <a href="https://commons.wikimedia.org/wiki/File:Giorgio_de_Chirico_-_Myst%C3%A8re_et_m%C3%A9lancolie_d%27une_rue.jpg">Wikimedia Commons</a>.</figcaption>
+</figure>
+<p>Фигура с обручем движется вдоль освещённой аркады. Впереди на мостовую падает тень, источник которой остаётся за пределами кадра. Аркада задаёт направление движения, а тень даёт понять, что впереди есть что-то за пределами кадра. Продолжение сцены остаётся открытым. <a href="https://median.uqam.ca/items/show/50599">Описание картины в каталоге Université du Québec à Montréal</a>.</p></div></li>
+</ul>
+</section>
+<section id="threshold" tabindex="-1">
+<p class="label">Введение</p><h2>Что значит быть в лиминальном пространстве</h2>
+<p>Первые дни после переезда у вас уже есть ключи, но слово «дом» всё ещё означает прежнее место. Потом в новой квартире случается первый неспешный завтрак, появляются знакомые маршруты, вы зовёте друзей на ужин. У переезда была дата. Чувство дома складывалось постепенно.</p>
+<p>Иногда перемена начинается с другой стороны. Снаружи всё идёт как раньше, а внутри вы замечаете, что хотите иначе проводить время, по-другому строить близость или чаще делать выбор по собственному желанию. Можно довольно ясно чувствовать, что прежняя жизнь стала мала, и пока иметь только смутное представление о новой.</p>
+<p>Арнольд ван Геннеп различал три фазы обрядов перехода: отделение от прежнего статуса, пребывание на пороге и включение в новую роль. Виктор Тёрнер подробнее исследовал среднюю фазу и то, как совместный переход может создавать особое переживание общности. В примерах Тёрнера итог посвящения задан обрядом: человека принимают в определённой роли. У повседневной перемены вроде возвращения домой такого заранее известного исхода может не быть.</p>
+<blockquote><p lang="en">“Liminal entities are neither here nor there; they are betwixt and between the positions assigned and arrayed by law, custom, convention, and ceremonial.”</p><p class="translation">«Те, кто находится на пороге, — ни здесь ни там. Они находятся между положениями, которые определяют и упорядочивают закон, обычай, принятые нормы и церемониал».</p><p class="source">Виктор Тёрнер · <a href="https://faculty.trinity.edu/mbrown/whatisreligion/PDF%20readings/TurnerVictor-%20Liminality%20and%20Communitas.pdf">«Лиминальность и коммунитас»</a></p></blockquote>
+<p>Непосредственно перед этой цитатой Тёрнер объясняет, почему участники обряда оказываются в неопределённом положении. На время перехода их становится трудно отнести к привычным социальным категориям. В обычной жизни положение людей можно заметить по одежде, знакам ранга и тому, как с ними обращаются. Он приводит обряды посвящения, где люди временно лишаются привычных знаков статуса. Пока они проходят обряд, прежние признаки уже не определяют их место, а новый статус ещё не присвоен. В этом смысле их положение неоднозначно. <a href="https://faculty.trinity.edu/mbrown/whatisreligion/PDF%20readings/TurnerVictor-%20Liminality%20and%20Communitas.pdf">Тёрнер, начало раздела <i>Liminality</i></a>.</p>
+<p>Уильям Бриджес в практической книге о жизненных переменах называет время между завершением и новым началом нейтральной зоной. Его схема описывает, как человек осваивается после перемены. У Тёрнера исходная единица анализа — обряд и место участника в группе. <a href="https://www.hachettebookgroup.com/titles/william-bridges/transitions-40th-anniversary-edition/9780738285405/">Бриджес, <i>Transitions</i></a>.</p>
+<details class="chapter-reading">
+<summary>Разбор «Лиминальности и коммунитас»</summary>
+<h3>Кто такие «люди порога»</h3>
+<p>Тёрнер описывает людей в той части обряда, когда прежний статус уже снят, а права и обязанности новой роли ещё не вступили в силу. На пороге меняется и то, как с человеком обращаются окружающие. Представьте, что вы перестали устраивать все семейные встречи, но близкие по привычке всё ещё ждут от вас инициативы. В собственных глазах вы уже выходите из этой роли, а в отношениях её ещё предстоит пересмотреть. Это бытовая аналогия к различию, которое описывает Тёрнер.</p>
+<h3>Время внутри привычного времени</h3>
+<p>Тёрнер описывает пороговую фазу как временную паузу в повседневных отношениях и правилах. Идёт обычный календарный день, но внутри обряда действуют иные правила, и обычные различия между людьми могут на время отступить. В личной жизни похожую паузу можно почувствовать, когда привычный календарь ещё заполнен, а то, что раньше задавало ему смысл, теряет силу. </p>
+<h3>Когда порог разделён с другими</h3>
+<p>Тёрнер называет <i>communitas</i> форму общности, которая может возникнуть среди тех, кто вместе проходит переход. В описанных им обрядах различия в ранге между участниками временно сглаживаются, хотя у старших по-прежнему есть власть вести обряд. </p>
+<p class="source">Подробнее в разделах <i>Liminality</i> и <i>Communitas</i>. <a href="https://faculty.trinity.edu/mbrown/whatisreligion/PDF%20readings/TurnerVictor-%20Liminality%20and%20Communitas.pdf">Виктор Тёрнер, «Лиминальность и коммунитас»</a></p>
+</details>
+
+</section>
+<section id="feelings" data-palette="support" aria-labelledby="feelings-title" tabindex="-1">
+<h2 id="feelings-title">Что мы чувствуем в переходе</h2>
+<p>Во вступлении возвращение в Москву описано через бытовые детали. Квартира, в которой автор прожила три года, показалась другой. Она не помнила, как зажигать плиту, на каком этаже живёт и как называются станции метро.</p>
+<p>В предыдущей главе Тёрнер описывает место человека в обряде: прежний статус уже снят, новый ещё не присвоен. В этой главе речь о том, как подобное «между» может ощущаться в обычной жизни. Три работы помогают рассмотреть разные стороны опыта: нарушение привычного порядка, потерю опор и перемену в чувстве принадлежности.</p>
+
+<h3>Когда привычный день перестаёт складываться сам собой</h3>
+<p>Пол Стеннер различает лиминальность, которой люди заранее придают форму, и переход, который начинается сам. Обряд посвящения, например, намеренно приостанавливает прежний порядок на определённое время. При <strong>спонтанной лиминальности</strong> привычный порядок нарушает событие, хотя отдельного времени на переход никто не отводил.</p>
+<blockquote>
+<p lang="en">“a structured form of social order that is, perhaps temporarily, suspended, lost, ruptured, interrupted”</p>
+<p class="translation">«Устоявшийся общественный порядок, который приостановлен, утрачен, нарушен или прерван — возможно, временно».</p>
+<p class="source">Пол Стеннер · <a href="https://link.springer.com/article/10.1007/s12124-025-09943-2"><i>Crisis and Sensemaking</i>, раздел о лиминальном опыте</a></p>
+</blockquote>
+<h4>Что происходит дальше</h4>
+<p>По Стеннеру, привычный порядок держится на ожиданиях. Мы примерно знаем, как пройдёт день, чего ждать от других и что они ждут от нас. После перемены эти ожидания могут перестать совпадать с тем, как устроена жизнь. Новый порядок начинает складываться, когда появляются ожидания, на которые снова можно опереться. Иногда в них находится место тому, что раньше не помещалось в привычном укладе. Стеннер описывает это как возможность, которая открывается на пороге. <a href="https://link.springer.com/article/10.1007/s12124-025-09943-2"><i>Crisis and Sensemaking</i>, о том, как возникает новый порядок</a>.</p>
+<p>Стеннер отдельно оговаривает, что нарушение прежнего порядка само по себе может быть тяжёлым. Возможность перемены появляется, когда у людей складываются новые общие ожидания, которые позволяют им снова согласовывать действия. Это гипотеза о том, как из перехода может возникнуть новый порядок. <a href="https://link.springer.com/article/10.1007/s12124-025-09943-2"><i>Crisis and Sensemaking</i>, обсуждение лиминального опыта</a>.</p>
+
+<h3>Когда друг за другом исчезают повседневные опоры</h3>
+<p>Кэти Банвелл и коллеги провели 19 интервью о первом годе пандемии. Большинство собеседников жили в австралийском штате Виктория. Участники рассказывали о тревоге за близких, социальной изоляции, финансовой неуверенности и сбоях в работе и учёбе. В исследовании приведён рассказ участника, которому пришлось отказаться от привычных занятий, связанных с тем, что он ходил на работу. По его словам, перемена отразилась и на других сторонах жизни. Другим не хватало доступа к привычным прогулкам и занятиям на воздухе.</p>
+<p>Некоторые участники также сомневались в своём будущем и говорили, что им стало труднее понять, кто они и как могут влиять на свою жизнь. Авторы рассматривают это как неуверенность в устойчивости собственной жизни и чувства себя. В этих интервью сомнения в будущем соседствуют и с материальными трудностями, и с переменами в представлении о себе.</p>
+<p>Участники также рассказывали, как выстраивали новый распорядок, чтобы поддерживать физическое и психическое здоровье во время ограничений. Некоторые находили возможности в изменившихся условиях. Эти наблюдения дополняют рассказы о потерях и показывают, что опыт участников различался.</p>
+<p>Это интервью о конкретном кризисе, в котором многое менялось одновременно. Они позволяют услышать, как люди сами связывали свои переживания с нарушением привычного уклада. По ним нельзя судить, какие чувства обязательно возникнут у другого человека и как долго они продлятся. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10050194/"><i>Liminality and Insecurity</i>, результаты интервью и обсуждение</a>.</p>
+
+<h3>Как меняется чувство принадлежности</h3>
+<p>В двух продольных исследованиях Арти Айер и коллеги опрашивали студентов до начала учёбы в университете и через два месяца после её начала. В среднем самочувствие после поступления ухудшилось. Те, кто сильнее ощущал себя частью университетской среды, сообщали о лучшем самочувствии.</p>
+<p>Участники чаще чувствовали себя частью университета, если принадлежали к нескольким группам и воспринимали прежнюю и новую принадлежность как совместимые. Авторы описывают связь между этими признаками и самочувствием студентов. <a href="https://bpspsychub.onlinelibrary.wiley.com/doi/10.1348/014466608X397628">Айер и коллеги, исследования перехода в университет</a>.</p>
+
+
+
+</section>
+<section id="homecoming" data-palette="story" tabindex="-1">
+<h2>Почему знакомое место ощущается иначе</h2>
+<p>В личном вступлении есть конкретная загадка. Автор возвращается туда, где жила три года, и замечает, что даже обычные действия и ориентиры больше не вспоминаются так легко. Социология возвращения, психология места и исследования привычек позволяют рассмотреть разные стороны этого опыта. У каждой работы своя задача и свои границы.</p>
+
+<h3>Альфред Шюц. Возвращение домой</h3>
+<p>В статье <i>The Homecomer</i> (1945) Шюц рассматривает возвращение в первую очередь как встречу людей после разлуки. Уехавший и те, кто остался, продолжают жить, но больше не делят одно и то же время и пространство. Каждый представляет жизнь другого по тому, что успел о ней узнать. Поэтому, когда люди снова встречаются, их ожидания могут расходиться с тем, как теперь устроены отношения. Среди примеров Шюца — возвращение ветеранов к гражданской жизни.</p>
+<p>Для истории на обложке здесь важна сама идея разрыва в общей повседневности. Физически можно вернуться по прежнему адресу, а воссоздать прежний ход жизни одним возвращением трудно. Это сопоставление двух сюжетов. У Шюца в центре отношения после разлуки. Пример с плитой в личной истории показывает другую сторону возвращения — знакомые бытовые действия. <a href="https://www.journals.uchicago.edu/doi/10.1086/219654">Шюц, <i>The Homecomer</i>, авторская аннотация</a>.</p>
+
+<h3>Гарольд Прошанский и коллеги. Идентичность места</h3>
+<p>В статье 1983 года Прошанский, Абби Фабиан и Роберт Каминофф описали <i>place identity</i> — часть представления о себе, которую человек формирует в связи с физической средой. С конкретными местами связываются воспоминания, предпочтения, навыки и ожидания. Вопрос о доме поэтому может касаться и самого помещения, и того, какие привычки и какая часть биографии с ним связаны. <a href="https://doi.org/10.1016/S0272-4944(83)80021-8">Прошанский, Фабиан и Каминофф, <i>Place-Identity</i></a>.</p>
+<p>Похожий термин — <i>place attachment</i>, привязанность к месту. Лейла Сканнелл и Роберт Гиффорд предложили разбирать её в трёх измерениях: кто связан с местом, как проявляется эта связь и какие особенности самого места имеют значение. Например, человек может дорожить тропой, по которой много лет гулял. Связь может опираться и на сам пейзаж, и на людей, с которыми он туда ходил. Этот пример поясняет модель. Он не устанавливает, из чего складывается привязанность к месту в конкретной личной истории. <a href="https://doi.org/10.1016/j.jenvp.2009.09.006">Сканнелл и Гиффорд, трёхчастная модель привязанности к месту</a>.</p>
+<p>Клэр Твиггер-Росс и Дэвид Уззелл применили модель идентичности Глинис Брейкуэлл к связи людей с местом проживания. Один из её принципов — <strong>непрерывность идентичности</strong>, ощущение связи между собой в прошлом и сейчас. Место может поддерживать такую связь, напоминая о прожитых событиях. Авторы также различают связь с конкретным местом и связь через знакомый тип среды. Это помогает понять, почему значение могут иметь и именно эта улица, и сам привычный способ жить рядом с парком или водой. <a href="https://openresearch.surrey.ac.uk/esploro/outputs/journalArticle/Place-and-identity-processes/991043862202346">Твиггер-Росс и Уззелл, <i>Place and Identity Processes</i></a>.</p>
+
+<h3>Венди Вуд и коллеги. От чего зависят привычки</h3>
+<p>Вуд, Леона Тэм и Мелисса Герреро Уитт изучили повседневные привычки студентов, которые перевелись в другой университет. Исследователи смотрели, как сохраняются тренировки, чтение газет и просмотр телевизора. Привычки чаще сохранялись, когда оставались знакомые элементы ситуации, например возможность читать газету вместе с другими. Перемена контекста могла нарушить привычное действие даже при намерении его продолжать. <a href="https://dornsife.usc.edu/wendy-wood/wp-content/uploads/sites/183/2023/10/Wood.Tam_.GuerreroWitt.2005_Changing_circumstances_disrupting_habits.pdf">Вуд, Тэм и Герреро Уитт, <i>Changing Circumstances, Disrupting Habits</i></a>.</p>
+<p>Эта работа показывает связь привычек с обстоятельствами, в которых они повторяются. Студенты осваивались в новом месте. Они не возвращались в прежнюю квартиру, а исследователи не проверяли забывание бытовых действий. Поэтому работа полезна как объяснение того, почему знакомые действия зависят от распорядка и окружения, а причины конкретного эпизода с плитой из неё вывести нельзя.</p>
+
+<h3>Марк Оже. Почему транзитный коридор ощущается иначе, чем дом</h3>
+<p>В книге «Не-места» антрополог Марк Оже описывает пространства циркуляции и потребления, например аэропорты и автомагистрали. Там человека обычно встречают в роли пассажира, клиента или водителя, а двигаться помогают общие для всех указатели. Оже уточняет, что для людей, которые встречаются и работают в таком пространстве, у него может быть своя история. В ленте примеров это даёт ещё один способ прочитать <i>The Exit 8</i>: коридор устроен для транзита, но игра заставляет в нём застрять и снова всматриваться в указатели. Это интерпретация игры через понятие Оже. У Тёрнера лиминальность описывает фазу перехода человека между статусами. <a href="https://www.versobooks.com/en-gb/blogs/news/introduction-to-the-second-edition-of-non-places">Марк Оже, авторское введение ко второму изданию «Не-мест»</a>.</p>
+</section>
+<section id="liminoid" data-palette="trial" tabindex="-1">
+<h2>От обряда к игре</h2>
+<p>В эссе 1974 года Виктор Тёрнер различает пороговую фазу обряда и <strong>лиминоидные явления</strong>, которые встречаются, например, в искусстве, игре и досуге. В его сопоставлении коллективный обряд связан с обязанностями перед сообществом, а в некоторых формах искусства и досуга человек сам выбирает участие. Это различие касается и тех, кто создаёт произведение, и тех, кто решает стать зрителем или игроком. <a href="https://repository.rice.edu/server/api/core/bitstreams/ede1dfa5-f46d-4f2c-b552-7b501bda2afe/content">Тёрнер, <i>Liminal to Liminoid, in Play, Flow, and Ritual</i>, полный текст в архиве Rice University</a>.</p>
+<h3>Что даёт выбор участвовать</h3>
+<p>В <i>Dreamcore</i> игрок сам решает войти в мир, где знакомые арки и лестницы повторяются, а маршрут приходится искать. Возможность прервать игру показывает, как устроен этот добровольный опыт. Завершение сеанса само по себе не меняет общественный статус игрока. В обряде посвящения именно признание нового статуса завершает переход. Это прочтение <i>Dreamcore</i> через понятие Тёрнера. <a href="https://www.dreamcoregame.com/">Описание и изображения уровней <i>Dreamcore</i></a>.</p>
+<p>Это различие полезно и для чтения всей галереи. Картина может поставить зрителя перед границей, фильм — дать время почувствовать дорогу, а игра — передать игроку управление движением. Во всех трёх случаях произведение задаёт условия, в которых можно переживать неопределённость. Вопрос о статусе участника обряда относится к другой стороне понятия.</p>
+</section>
+<section id="architecture" data-palette="experiment" tabindex="-1">
+<h2>Как пространство создаёт ощущение порога</h2>
+<p>Один и тот же коридор можно пройти за полминуты или провести в нём всё ожидание. Геометрия осталась прежней, а роль пространства в вашем опыте изменилась. Архитекторы Альдо ван Эйк и Бернар Чуми дают два способа разобрать эту разницу.</p>
+<h3>Альдо ван Эйк. Порог как место встречи</h3>
+<p>В текстах <i>Team 10 Primer</i> ван Эйк пишет о пороге, где встречаются две стороны границы. Вход в дом соединяет улицу и жилище. Если перед входом можно остановиться, поздороваться или дождаться кого-то, эта граница становится местом со своим назначением. Такой промежуток может ощущаться обжитым. <a href="https://architecture-history.org/books/Team%2010%20Primer.pdf">Альдо ван Эйк в <i>Team 10 Primer</i>, тексты о пороге и промежуточном пространстве</a>.</p>
+<h3>Бернар Чуми. Пространство, движение и событие</h3>
+<p>В <i>The Manhattan Transcripts</i> Чуми сопоставляет план пространства, движения людей и события, которые там происходят. Эти три слоя можно читать отдельно. Применим их к <i>The Exit 8</i>: план предлагает прямой проход, движение повторяет один и тот же маршрут, а правило игры заставляет искать изменения или разворачиваться. Сам коридор узнаваем. Странность возникает в том числе из-за того, что в проходе приходится вести себя иначе, чем обычно. <a href="https://www.moma.org/collection/works/19">Чуми, <i>The Manhattan Transcripts</i>, работы в коллекции MoMA</a> · <a href="https://channel.sciarc.edu/browse/bernard-tschumi-manhattan-transcripts-october-6-1982">Лекция Чуми о проекте</a>.</p>
+<h3>Что проверяли на изображениях комнат</h3>
+<p>Александер Диль и Майкл Льюис предложили участникам оценивать виртуальные интерьеры. В одних версиях комнат исследователи меняли размер деталей, в других — их расположение, повторяемость или наличие. В частности, сравнивали типичный интерьер с его изменённой версией. Авторы связали часть таких отклонений с ощущением странности или жути. Роль присутствия людей зависела от типа места: для публичных и частных пространств эффекты оказались разными. Это оценки изображений в экспериментах. Они помогают разобрать некоторые эффекты игровых интерьеров, а переживание жизненного перехода в этой работе не изучалось. <a href="https://orca.cardiff.ac.uk/id/eprint/151790/8/1-s2.0-S0272494422000895-main.pdf">Диль и Льюис, <i>Structural Deviations Drive an Uncanny Valley of Physical Places</i></a>.</p>
+</section>
+<section id="backrooms" data-palette="desire" tabindex="-1">
+<h2>Backrooms. Как пустая комната стала целым миром</h2>
+<p>В 2019 году на форуме 4chan к фотографии пустого помещения с жёлтыми стенами добавили историю. В неё вошло игровое правило: можно случайно провалиться за пределы привычного мира, как персонаж, который проходит сквозь стену из-за сбоя. За стеной оказываются Backrooms — пространство, где одни и те же комнаты тянутся дальше, чем можно себе представить. Позже люди начали дописывать легенду, придумывать уровни и развивать её в видео и играх. <a href="https://scholarworks.iu.edu/journals/index.php/cl/article/download/41598/43424/121004"><i>Lost in Liminal Space</i>, исследование происхождения и распространения легенды</a>.</p>
+<h3>Что добавила история к самой фотографии</h3>
+<p>На снимке видна одна комната. Текст заставляет представить бесконечные помещения за её краем. Затем внимание смещается с вопроса «что это за место?» на вопрос «как из него выйти?». В этой легенде промежуток может продолжаться сколько угодно. Брэдли Эрл Уиггинс проследил, как эта идея развивается в 16 видео Кейна Парсонса, и описал Backrooms как пример бесконечной лиминальности внутри вымышленного мира. Исследование разбирает устройство видео и легенды. Реакции зрителей оно не измеряет. <a href="https://journals.sagepub.com/doi/10.1177/14614448241238395">Уиггинс, <i>The Backrooms and Liminal Spaces</i>, аннотация исследования</a>.</p>
+<p>В <i>The Exit 8</i> повторение служит правилом, которое можно освоить. В легенде Backrooms оно поддерживает сомнение, существует ли вообще конец. Похожие коридоры дают разные переживания, когда у них разные правила и разные обещания выхода.</p>
+</section>
+<section id="prolonged" data-palette="support" tabindex="-1">
+<h2>Когда у перехода нет известного срока</h2>
+<p>Если завершение перехода зависит от решения другого человека или учреждения, у ожидания может не быть ясного срока. Даже при одинаковом чувстве «между» возможности действовать у людей бывают очень разными. Это особенно заметно в исследованиях вынужденного перемещения.</p>
+<h3>Что может тянуться годами</h3>
+<p>Хартонен и коллеги сопоставили 17 качественных исследований опыта беженцев и людей, ищущих убежище. Они описывают неопределённость правового статуса, зависимость от решений учреждений и временные условия, которые могут надолго стать повседневностью. Авторы также собрали примеры того, как люди действуют в доступных им пределах. Это исследование вынужденного перехода и его институциональных ограничений. <a href="https://iaap-journals.onlinelibrary.wiley.com/doi/10.1111/apps.12349">Хартонен и коллеги, <i>A Stage of Limbo</i></a>.</p>
+<h3>Как сравнивать переходы</h3>
+<p>Бьёрн Томассен предлагает учитывать, кто проходит переход, где он происходит и сколько длится. Порог может касаться одного человека, группы или целого общества. Он может занять короткий промежуток или стать длительным состоянием. Вопрос о том, кто определяет его конец, помогает отличить временную паузу от ожидания, которое поддерживают внешние правила. <a href="https://forskning.ruc.dk/en/publications/the-uses-and-meaning-of-liminality/">Томассен, <i>The Uses and Meanings of Liminality</i></a>.</p>
+<p>У посвящения Тёрнера есть обрядовое завершение. У игрока есть возможность закончить сеанс. У человека, ожидающего юридического решения, полномочия завершить ожидание могут быть у учреждения. Во всех трёх ситуациях есть опыт промежутка. Возможность выйти из него распределена по-разному.</p>
+<p><strong>О чём следующие занятия.</strong> Они посвящены той части перемен, на которую человек может влиять. Возможность сделать что-то в пределах своей повседневности может сохраняться и тогда, когда срок или исход перехода определяет учреждение. Масштаб возможных действий зависит от обстоятельств.</p>
+</section>
+<section id="story" data-palette="story">
+<p class="label">Занятие 1</p><h2>Главы вашей жизни</h2>
+<p>Психолог Дэн Мак-Адамс предлагает рассматривать историю жизни через главы и отдельные сцены. Один и тот же период может содержать опыт, с которым вы готовы расстаться, и то, что стало для вас особенно ценным. Если в прежнем укладе стало мало свободы, это ещё ничего не говорит о ценности дружбы, дома или увлечений, которые в нём появились.</p>
+<blockquote><p lang="en">“A story is selective. It may focus on a few key events, a few key relationships, a few key themes which recur in the narrative.”</p><p class="translation">«В рассказ входит лишь часть пережитого. В центре могут оказаться несколько важных событий, несколько важных отношений и несколько тем, которые повторяются по ходу рассказа».</p><p class="source">Дэн Мак-Адамс · <a href="https://cpb-us-e1.wpmucdn.com/sites.northwestern.edu/dist/4/3901/files/2020/11/The-Life-Story-Interview-1995.pdf">Интервью об истории жизни</a></p></blockquote>
+<p>Перед этой фразой Мак-Адамс разрешает участнику опустить многое из того, что с ним случилось. Для нашего занятия важен сам выбор эпизодов: по каким сценам вы понимаете, что этот период жизни меняется?</p>
+<details class="chapter-reading">
+<summary>Как Мак-Адамс предлагает рассказывать о жизни</summary>
+<h3>Сначала главы, затем сцены</h3>
+<p>После вступительных пояснений Мак-Адамс просит представить жизнь как книгу и наметить её главы. Он просит назвать несколько глав жизни и коротко рассказать, что происходит в каждой. Затем интервьюер возвращается к отдельным эпизодам, среди которых есть удачные, трудные и поворотные моменты. У главы есть длительность, а сцену можно описать через место, людей, поступки и переживания. <a href="https://cpb-us-e1.wpmucdn.com/sites.northwestern.edu/dist/4/3901/files/2020/11/The-Life-Story-Interview-1995.pdf">Оригинал интервью, разделы <i>Life Chapters</i> и <i>Critical Events</i></a>.</p>
+<h3>Зачем связывать эпизоды в рассказ</h3>
+<p>В статье о нарративной идентичности Мак-Адамс и Кейт Маклин описывают историю жизни как меняющийся рассказ, в котором человек связывает представление о прошлом с воображаемым будущим. Для курса из этого следует простой вывод: человек может по-разному сгруппировать одни и те же события в разные моменты жизни. Это понятие из психологии личности. Само интервью предлагает способ собрать рассказ. <a href="https://doi.org/10.1177/0963721413475622">Мак-Адамс и Маклин, <i>Narrative Identity</i></a>.</p>
+<h3>Одна сцена может уточнить всю главу</h3>
+<p>Возьмём возвращение из вступления. Во вступлении автор говорит, что квартира показалась другой. Сцена с плитой показывает, по какой детали она это заметила. Сопоставьте её со сценой, где прежний уклад был своим. Что тогда давало чувство дома? Что из этого всё ещё важно? Так в рассказе остаются и признаки перемены, и то, что хочется взять с собой. Это упражнение для курса, составленное по мотивам интервью Мак-Адамса.</p>
+</details>
+<div class="exercise"><p><strong>Практика.</strong> Дайте название последней главе своей жизни. Вспомните три сцены: момент, когда этот уклад вам подходил, момент, когда он стал тесным, и момент, в котором появилось любопытство к чему-то другому. Опишите по одному конкретному действию или разговору в каждой. Отметьте, что вы хотите унести с собой из этой главы.</p></div>
+</section>
+<section id="support" data-palette="support" tabindex="-1">
+<p class="label">Занятие 2</p><h2>Опоры перехода</h2>
+<p>Нэнси Шлоссберг и её коллеги предложили рассматривать переход с четырёх сторон: ситуация, особенности и ресурсы человека, поддержка и способы действовать. Это помогает увидеть, почему одна и та же перемена в разные моменты ощущается по-разному. Например, желание больше путешествовать может упираться в усталость, деньги или заботу о близких. У каждого из этих обстоятельств свой возможный ответ.</p>
+<p>Симона де Бовуар рассматривала свободу как то, что осуществляется в конкретных обстоятельствах и в отношениях с другими. Для курса из этого следует вопрос: какое пространство выбора у меня есть сейчас и какое можно создать вместе с другими людьми?</p>
+<details class="chapter-reading">
+<summary>Четыре вопроса Шлоссберг о переходе</summary>
+<h3>Что произошло и почему это важно именно сейчас</h3>
+<p>Шлоссберг включает в понятие перехода и события, которых человек ждал, но которые не случились. Представьте, что вы собирались жить в одном городе рядом с близким человеком, а общий план сорвался. Даже если вы остались по прежнему адресу, ваши ожидания о будущем и договорённости с другим человеком могут измениться. <a href="https://journals.sagepub.com/doi/10.1177/001100008100900202">Статья Шлоссберг о том, что считать переходом</a>.</p>
+<h3>Чего сейчас не хватает</h3>
+<p>В более позднем руководстве Андерсон, Гудман и Шлоссберг предлагают рассматривать четыре группы факторов. Допустим, вы возвращаетесь в город после долгого отъезда. <strong>Ситуация</strong> — вы вернулись, а привычный ритм ещё не восстановился. <strong>Ваши ресурсы</strong> — сколько у вас времени и сил, на какой опыт можно опереться. <strong>Поддержка</strong> — кто может выслушать, показать новое место или помочь с бытом. <strong>Действия</strong> — что вы можете изменить в самой ситуации и как справляетесь с её последствиями. На практике полезно искать конкретный пробел. Если вы многое можете сделать сами, но не с кем обсудить перемену, начните с поддержки. <a href="https://www.springerpub.com/behavioral-sciences/counseling-adults-in-transition-fifth-edition-9780826135469.html">Андерсон, Гудман и Шлоссберг, модель четырёх S</a>.</p>
+</details>
+<div class="exercise"><p><strong>Практика.</strong> Нарисуйте четыре колонки: «ситуация», «мои ресурсы», «поддержка», «доступные действия». В каждой запишите по два конкретных пункта. Выберите одну опору, которую можете задействовать в ближайшие дни. Например, попросить близкого человека составить компанию или договориться о времени, которое вы проведёте по своему выбору.</p></div>
+<p class="source"><a href="https://journals.sagepub.com/doi/10.1177/001100008100900202">Шлоссберг о переходах</a> · <a href="https://sites.nationalacademies.org/cs/groups/pgasite/documents/webpage/pga_160805.pdf">Развитие модели четырёх S</a> · <a href="https://www.marxists.org/reference/subject/ethics/de-beauvoir/ambiguity/ch01.htm">Де Бовуар, «Этика двусмысленности»</a></p>
+</section>
+<section id="desire" data-palette="desire">
+<p class="label">Занятие 3</p><h2>Чего хочется больше</h2>
+<p>В словах «хочется чего-то замечательного» может быть несколько разных желаний. Свобода решать, чему посвятить день. Близость, в которой можно говорить открыто. Удовольствие от того, что тело движется. Любопытство к тому, чего ещё никогда не пробовали. В терапии принятия и ответственности (ACT) ценности помогают выбрать направление действий: ценность можно выразить поступком ещё до того, как вы выбрали большую цель.</p>
+<p>Таня Зиттун и её коллеги изучали, как люди используют культурные образы, истории и произведения искусства, чтобы осмыслить перемены. Иногда сцену в фильме проще описать, чем собственное желание. Если вы возвращаетесь к одной сцене, разберите, что в ней вас трогает. Может быть, героиня впервые выбирает место, где ей хорошо, или друзья разговаривают так, как вам давно хотелось бы разговаривать с кем-то.</p>
+<details class="chapter-reading">
+<summary>Ценность, цель и сцена, которая зацепила</summary>
+<h3>Ценность видна по тому, как вы действуете</h3>
+<blockquote><p lang="en">“more like a direction than a destination”</p><p class="translation">«Скорее направление, чем конечный пункт».</p><p class="source"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3635495/">Хейс и коллеги о ценностях в ACT</a></p></blockquote>
+<p>Допустим, вы хотите чаще разговаривать с близкими открыто. Пригласить одного человека на встречу — цель, которую можно выполнить. Говорить прямо о том, что для вас важно, — направление, к которому можно возвращаться в разных отношениях. Из этой идеи ACT для курса взят один вопрос: как выбранное вами направление может проявиться в ближайшем поступке?</p>
+<h3>Что можно взять из чужой истории</h3>
+<p>Таня Зиттун исследовала, как будущие родители выбирают имена детям. В обсуждении имени они могут обращаться к семейным воспоминаниям, традициям и культурным образам, чтобы разобраться в том, что хотят передать ребёнку. Для курса из этой работы взята другая ситуация: когда сцена из фильма не отпускает, опишите сначала, что в ней делает человек. Например, героиня сама решает, где ей жить. Затем уточните, что вас тронуло: сам переезд, право выбирать или возможность обустроить дом по-своему. Каждый ответ ведёт к разному действию. <a href="https://journals.sagepub.com/doi/10.1177/1354067X04040926">Зиттун, исследование выбора имён при переходе к родительству</a>.</p>
+</details>
+<div class="exercise"><p><strong>Практика.</strong> Возьмите один жизненный эпизод и одну сцену из книги, фильма или песни. Запишите, что в каждом вам хотелось бы проживать чаще. Переведите один ответ в действие на эту неделю. Например, «больше игры» может означать вечер за настольными играми, занятие танцами или время на рисунок, который вы делаете для себя.</p></div>
+<p class="source"><a href="https://journals.sagepub.com/doi/10.1177/1354067X0394006">Зиттун и коллеги о символических ресурсах</a> · <a href="https://www.sciencedirect.com/science/article/pii/S0272735824000539">Систематический обзор механизмов ACT</a></p>
+</section>
+<section id="trial" data-palette="trial">
+<p class="label">Занятие 4</p><h2>Возможные уклады</h2>
+<p>Философ Л. А. Пол разбирает особую трудность выбора: иногда только пережитый опыт показывает, каково это, а сам опыт способен изменить то, что человек считает важным. Для этого занятия отсюда следует вопрос: какую часть ответа я могу получить через опыт? Маленькая проба даёт сведения о конкретной стороне жизни. Один день в новом городе, например, может показать, как вам там гулять или передвигаться, а вопрос о повседневной жизни потребует большего.</p>
+<blockquote><p lang="en">“we can know very little about our subjective futures”</p><p class="translation">«Мы можем очень мало знать о том, как будем переживать своё будущее».</p><p class="source">Л. А. Пол · <a href="https://academic.oup.com/book/7934/1000">Из авторской аннотации к <i>Transformative Experience</i></a></p></blockquote>
+<p>Джон Дьюи описывает обдумывание как мысленную репетицию нескольких вариантов действия. В Stanford Life Design Lab похожая задача решается через альтернативные сценарии и практические пробы. Сначала полезно представить обычный день, со всеми его бытовыми подробностями. Затем можно прожить один фрагмент и сравнить опыт с ожиданиями.</p>
+<blockquote><p lang="en">“deliberation is a dramatic rehearsal (in imagination) of various competing possible lines of action.”</p><p class="translation">«Обдумывание — это драматическая репетиция в воображении нескольких возможных способов действовать».</p><p class="source">Джон Дьюи · <a href="https://www.gutenberg.org/cache/epub/41386/pg41386-images.html"><i>Human Nature and Conduct</i></a></p></blockquote>
+<details class="chapter-reading">
+<summary>Что можно представить заранее</summary>
+<h3>Два вопроса о будущем у Л. А. Пол</h3>
+<p>Пол различает два свойства опыта. Он преобразует знание, если из самого переживания вы узнаёте, каково это, а заранее такого знания получить нельзя. Он преобразует личность, если существенно меняет ваши предпочтения или то, кем вы себя считаете. Иногда оба вида совпадают. Один из примеров Пол — решение стать родителем: рассказы других людей могут дать важные сведения о повседневности, а собственный опыт способен изменить сами критерии, по которым вы оцениваете будущую жизнь. Это философская постановка вопроса о выборе. <a href="https://academic.oup.com/book/7934/chapter-abstract/163546972">Пол, глава <i>Transformative Choice</i></a>.</p>
+<h3>Что даёт мысленная репетиция</h3>
+<p>У Дьюи воображение позволяет проследить возможные последствия нескольких действий. Для курса это означает, что полезно представить весь обычный вторник, включая его скучные части. Например, жизнь за городом бывает привлекательна тишиной. Добавьте к картине поездки, бытовые дела и время до встречи с друзьями. Так вы сможете сформулировать более точный вопрос для пробы: мне хочется жить за городом или получить несколько тихих часов в обычной неделе? <a href="https://www.gutenberg.org/cache/epub/41386/pg41386-images.html">Дьюи, <i>Human Nature and Conduct</i>, часть III</a>.</p>
+</details>
+<div class="exercise"><p><strong>Занятие 4.</strong> Опишите обычный вторник в трёх возможных версиях вашей жизни. Пусть в каждой меняется что-то своё: количество времени наедине с собой, близость с людьми, место, движение или творчество. Что вы делаете утром? С кем и где проводите вечер? Какую деталь из каждого вторника хочется прожить?</p></div>
+</section>
+<section id="experiment" data-palette="experiment">
+<p class="label">Занятие 5</p><h2>Как попробовать новое</h2>
+<p>Вернитесь к трём вариантам обычного вторника. Возьмите из любого одну деталь, которую можно прожить уже сейчас. Сравните то, как вы её представляли, с тем, как она ощущается в действительности.</p>
+<details class="chapter-reading">
+<summary>Как устроить пробу, которая даст ответ</summary>
+<h3>Разговор и собственный опыт отвечают на разные вопросы</h3>
+<p>В Stanford Life Design Lab предлагают два способа проверить возможный сценарий: поговорить с человеком, который уже знает такой уклад изнутри, или прожить его небольшой фрагмент. Если вас тянет к жизни в другом районе, расспросите местного жителя о его буднях. Затем проведите там обычный день со своими делами. Разговор покажет, что полезно проверить, а день даст сведения о том, как эти условия ощущаются для вас. <a href="https://www.youtube.com/watch?v=2yFiS-ajQq0">Stanford Life Design Lab, занятие о пробах через разговор и опыт</a>.</p>
+<h3>Запишите вопрос до начала</h3>
+<p>Сравните «хочу попробовать другую жизнь» и «хочу понять, как мне пройтись по этому району вечером и добраться домой». Во втором случае ясно, что наблюдать. По итогам отделите наблюдение от вывода. Например, «днём мне понравился свет в квартире, вечером было шумно» точнее, чем «этот район мне подходит». При желании повторите пробу в другое время. Этот способ записи разработан для курса по мотивам подхода Stanford Life Design Lab. <a href="https://lifedesignlab.stanford.edu/resources-1">Материалы лаборатории о сценариях и пробах</a>.</p>
+</details>
+<div class="exercise"><p><strong>Практика.</strong> Выберите одну доступную пробу. Перед ней запишите, что рассчитываете узнать. После — что получилось иначе, чего хотелось больше и стоит ли повторить. Например, после вечера за новым занятием может выясниться, что вам особенно понравилось учиться вместе с людьми. Это уже отдельная подсказка.</p></div>
+<p class="source"><a href="https://lifedesignlab.stanford.edu/resources-1">Stanford Life Design Lab о сценариях и пробах</a></p>
+</section>
+<section id="ritual" data-palette="ritual" tabindex="-1">
+<p class="label">Занятие 6</p><h2>Обряд для того, что уже меняется</h2>
+<p>Пол Стеннер различает пороговый опыт, который возникает сам, когда что-то нарушает привычный ход жизни, и переход, которому люди намеренно придают форму. Эти вещи могут совпасть: вы уже несколько недель ощущаете перемену, а потом выбираете день, место или разговор, чтобы дать ей выражение.</p>
+<blockquote><p lang="en">“devised liminality” · “spontaneous liminality”</p><p class="translation">«Намеренно устроенная лиминальность» и «спонтанная лиминальность».</p><p class="source">Пол Стеннер · <a href="https://link.springer.com/article/10.1007/s12124-025-09943-2">Статья о лиминальном опыте</a></p></blockquote>
+<p>Можно отметить прощание, само пребывание между жизненными укладами или первое действие, которое хочется повторять. В экспериментах Майкла Нортона и Франчески Джино люди, которые вспоминали или выполняли символическое действие после потери, сообщали о меньшей остроте переживания и большем ощущении контроля. Упражнение ниже переносит идею символического действия на вашу ситуацию по аналогии.</p>
+<details class="chapter-reading">
+<summary>Что именно может отметить обряд</summary>
+<h3>Отделение, порог и включение</h3>
+<p>У ван Геннепа каждая часть обряда решает свою задачу. Прощание с прежним местом или ролью отмечает отделение. В пороговой фазе участник находится между прежним и новым статусом. Включение наступает, когда новое положение получает признание. Можно перенести этот принцип в личную жизнь: после переезда попрощаться с прежним домом, отметить время обустройства или собрать близких в новом месте. В каждом примере действие отмечает свой момент перехода. <a href="https://press.uchicago.edu/ucp/books/book/chicago/R/bo38180827.html">Ван Геннеп, «Обряды перехода»</a>.</p>
+<h3>Что проверяли Нортон и Джино</h3>
+<p>В первом эксперименте участники вспоминали смерть близкого человека или конец отношений. Одной группе дополнительно предложили описать ритуал, если они его совершали. В лабораторном эксперименте часть людей выполняла заданный исследователями ритуал после проигрыша в лотерее. Авторы сравнивали ответы участников о силе переживания и чувстве контроля. Меньшая острота переживания была связана с большим ощущением контроля. Эти эксперименты касались переживания потерь. Предложение отметить ещё открытый жизненный переход — адаптация для курса. <a href="https://dash.harvard.edu/entities/publication/73120378-af42-6bd4-e053-0100007fdf3b">Нортон и Джино, статья и описание экспериментов</a>.</p>
+</details>
+<div class="exercise"><p><strong>Практика.</strong> Выберите, что хотите отметить. Для прощания можно пройтись по знакомым местам и записать, что этот период вам дал. Для порога — пригласить близкого человека на прогулку и рассказать, что уже понятно, а что пока открыто. Для начала — сделать что-то впервые и решить, когда хочется повторить. Если пока единственная ясность звучит как «я хочу жить иначе», обряд может отметить и её.</p></div>
+<p class="source"><a href="https://pubmed.ncbi.nlm.nih.gov/23398180/">Нортон и Джино, эксперименты с ритуалами после потери</a></p>
+</section>
+<section id="reading">
+<h2>Как читать источники</h2>
+
+<p>Под цитатами есть перевод и контекст. В раскрываемых разделах можно посмотреть, что именно описывал каждый автор и как эта идея перешла в упражнение. Антропология помогает понять общественную сторону обряда, философия — трудности выбора, а психологические исследования — отдельные стороны перемен. Упражнения составлены для самостоятельной работы. Весь курс отдельно не исследовали.</p>
+<ul>
+<li><a href="https://press.uchicago.edu/ucp/books/book/chicago/R/bo38180827.html">Арнольд ван Геннеп, «Обряды перехода»</a></li>
+<li><a href="https://forskning.ruc.dk/en/publications/the-uses-and-meaning-of-liminality/">Бьёрн Томассен о том, как применять понятие лиминальности</a></li>
+<li><a href="https://www.hachettebookgroup.com/titles/william-bridges/transitions-40th-anniversary-edition/9780738285405/">Уильям Бриджес, <i>Transitions</i></a></li>
+<li><a href="https://link.springer.com/book/10.1057/978-1-137-27211-9">Пол Стеннер, <i>Liminality and Experience</i></a></li>
+<li><a href="#homecoming">Возвращение домой, идентичность места, привязанность и привычки</a></li>
+<li><a href="#liminoid">От обряда к игре</a></li>
+<li><a href="#architecture">Как пространство создаёт ощущение порога</a></li>
+<li><a href="#backrooms">Backrooms. Как пустая комната стала целым миром</a></li>
+<li><a href="#prolonged">Когда у перехода нет известного срока</a></li>
+<li><a href="#story">Вопросы Мак-Адамса об истории жизни</a></li>
+<li><a href="#support">Модель перехода Шлоссберг</a></li>
+<li><a href="#desire">Исследования ценностей и символических ресурсов</a></li>
+<li><a href="#trial">Пол и Дьюи о выборе и воображении</a></li>
+<li><a href="#experiment">Упражнения Stanford Life Design Lab</a></li>
+<li><a href="#ritual">Стеннер о лиминальности, Нортон и Джино о ритуалах</a></li>
+</ul>
+</section>
+</article>
+</main>
+<footer><div class="wrap"><a href="#top">К началу курса</a></div></footer>
+<script>
+(() => {
+  const title = document.getElementById('cover-title');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const hover = matchMedia('(any-hover: hover)');
+  const canvas = document.createElement('canvas');
+  const image = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const ink = image.getContext('2d');
+  if (!context || !ink || !('letterSpacing' in ink)) return;
+
+  canvas.className = 'title-warp';
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.hidden = true;
+  const lines = [...title.childNodes].filter(node => node.nodeType === 3).map(node => node.textContent.trim()).filter(Boolean);
+  title.append(canvas);
+  let tile, padding, width, height, scale, reach;
+  let frame = 0;
+  const pointer = { x: 0, y: 0, strength: 0 };
+  const target = { x: 0, y: 0, strength: 0 };
+
+  function layout() {
+    delete title.dataset.warp;
+    canvas.hidden = true;
+    pointer.strength = target.strength = 0;
+    const style = getComputedStyle(title);
+    const size = parseFloat(style.fontSize);
+    const line = parseFloat(style.lineHeight);
+    tile = Math.max(10, Math.round(size * .24));
+    padding = tile * 3;
+    reach = size * 2;
+    width = Math.ceil(title.clientWidth + padding * 2);
+    height = Math.ceil(title.clientHeight + padding * 2);
+    scale = Math.min(devicePixelRatio || 1, 2);
+    for (const layer of [image, canvas]) {
+      layer.width = Math.ceil(width * scale);
+      layer.height = Math.ceil(height * scale);
+    }
+    canvas.style.cssText = 'left:' + -padding + 'px;top:' + -padding + 'px;width:' + width + 'px;height:' + height + 'px';
+    ink.setTransform(scale, 0, 0, scale, 0, 0);
+    ink.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
+    ink.letterSpacing = style.letterSpacing;
+    ink.fillStyle = style.color;
+    const metrics = ink.measureText(lines[0]);
+    const baseline = (line + metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2;
+    lines.forEach((text, i) => ink.fillText(text, padding, padding + baseline + i * line));
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+  }
+
+  function paint() {
+    frame = 0;
+    pointer.x += (target.x - pointer.x) * .27;
+    pointer.y += (target.y - pointer.y) * .27;
+    pointer.strength += (target.strength - pointer.strength) * .22;
+    if (pointer.strength < .015 && !target.strength) {
+      canvas.hidden = true;
+      delete title.dataset.warp;
+      return;
+    }
+
+    context.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y += tile) {
+      for (let x = 0; x < width; x += tile) {
+        const w = Math.min(tile, width - x);
+        const h = Math.min(tile, height - y);
+        const dx = x + w / 2 - pointer.x;
+        const dy = y + h / 2 - pointer.y;
+        const pull = Math.max(0, 1 - Math.hypot(dx, dy) / reach) ** 2 * pointer.strength;
+        const offsetX = Math.round((dx * .55 + Math.sin(y / tile * 1.9) * tile * .72) * pull);
+        const offsetY = Math.round((dy * .85 + tile * 1.35) * pull);
+        context.drawImage(image, x * scale, y * scale, w * scale, h * scale, x + offsetX, y + offsetY, w, h);
+      }
+    }
+    canvas.hidden = false;
+    title.dataset.warp = '';
+    if (Math.abs(target.x - pointer.x) > .25 || Math.abs(target.y - pointer.y) > .25 || Math.abs(target.strength - pointer.strength) > .007) schedule();
+  }
+
+  function schedule() {
+    if (!frame) frame = requestAnimationFrame(paint);
+  }
+
+  title.addEventListener('pointermove', event => {
+    if (motion.matches || !hover.matches || event.pointerType === 'touch') return;
+    const bounds = title.getBoundingClientRect();
+    target.x = event.clientX - bounds.left + padding;
+    target.y = event.clientY - bounds.top + padding;
+    if (!pointer.strength) {
+      pointer.x = target.x;
+      pointer.y = target.y;
+    }
+    target.strength = 1;
+    schedule();
+  });
+  function release() {
+    target.strength = 0;
+    schedule();
+  }
+  title.addEventListener('pointerleave', release);
+  addEventListener('blur', release);
+  motion.addEventListener('change', layout);
+  new ResizeObserver(layout).observe(title);
+  layout();
+})();
+(() => {
+  const strip = document.getElementById('example-strip');
+  const controls = document.querySelector('.example-controls');
+  const slides = [...strip.children];
+  const [back, forward] = controls.querySelectorAll('button');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let index = 0;
+  let stripFrame = 0;
+
+  function positions() {
+    const start = slides[0].offsetLeft;
+    return slides.map(slide => slide.offsetLeft - start);
+  }
+
+  function updateControls() {
+    const offsets = positions();
+    index = offsets.reduce((nearest, offset, current) =>
+      Math.abs(offset - strip.scrollLeft) < Math.abs(offsets[nearest] - strip.scrollLeft) ? current : nearest, 0);
+    const end = strip.scrollWidth - strip.clientWidth;
+    if (end > 2 && strip.scrollLeft >= end - 2) index = slides.length - 1;
+    slides.forEach((slide, i) => {
+      const width = slide.offsetWidth || 1;
+      const distance = (Math.min(offsets[i], end) - strip.scrollLeft) / width;
+      const depth = Math.min(1, Math.abs(distance));
+      slide.style.setProperty('--card-lift', (depth * 13).toFixed(1) + 'px');
+      slide.style.setProperty('--card-tilt', (Math.max(-1, Math.min(1, distance)) * 1.6).toFixed(2) + 'deg');
+      slide.style.setProperty('--card-scale', (1 - depth * .035).toFixed(3));
+    });
+    back.disabled = index === 0;
+    forward.disabled = index === slides.length - 1;
+  }
+
+  for (const button of [back, forward]) {
+    button.addEventListener('click', () => {
+      const destination = index + Number(button.dataset.direction);
+      strip.scrollTo({ left: positions()[destination], behavior: motion.matches ? 'instant' : 'smooth' });
+    });
+  }
+  strip.addEventListener('scroll', () => {
+    if (stripFrame) return;
+    stripFrame = requestAnimationFrame(() => {
+      stripFrame = 0;
+      updateControls();
+    });
+  }, { passive: true });
+  new ResizeObserver(updateControls).observe(strip);
+  controls.hidden = false;
+  updateControls();
+})();
+(() => {
+  const canvas = document.getElementById('dot-screen');
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) {
+    canvas.hidden = true;
+    return;
+  }
+
+  const control = document.querySelector('.motion-control');
+  let paused = false;
+
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const cycle = 48000;
+  const palettes = {
+    mono: [[65, 98, 78], [105, 140, 113], [166, 190, 149]],
+    story: [[58, 88, 76], [99, 128, 108], [159, 182, 152]],
+    support: [[60, 92, 74], [101, 140, 104], [165, 190, 144]],
+    desire: [[74, 100, 73], [122, 149, 111], [181, 195, 145]],
+    trial: [[58, 89, 80], [98, 130, 112], [155, 181, 148]],
+    experiment: [[62, 93, 78], [106, 140, 114], [168, 189, 153]],
+    ritual: [[79, 104, 75], [123, 149, 107], [177, 189, 138]],
+  };
+  const rooms = [...document.querySelectorAll('article section')];
+  const colors = palettes.mono.map(color => [...color]);
+  const nextColors = palettes.mono.map(color => [...color]);
+  const chapterLinks = document.querySelectorAll('aside a');
+  let activeRoom;
+  let opening = 0;
+  let nextOpening = 0;
+
+  function paletteFor(room) {
+    return palettes[room?.dataset.palette] || palettes.mono;
+  }
+
+  function updatePalette() {
+    const sightline = innerHeight * .48;
+    let previous;
+    let previousBottom = 0;
+    let coming;
+    let comingTop = sightline;
+    let room;
+    for (const section of rooms) {
+      const bounds = section.getBoundingClientRect();
+      if (bounds.top > sightline) {
+        coming = section;
+        comingTop = bounds.top;
+        break;
+      }
+      if (bounds.bottom > sightline) {
+        room = section;
+        break;
+      }
+      previous = section;
+      previousBottom = bounds.bottom;
+    }
+    if (room !== activeRoom) {
+      activeRoom = room;
+      for (const link of chapterLinks) {
+        if (room && link.hash === '#' + room.id) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      }
+    }
+    const leaving = paletteFor(room || previous);
+    const arriving = paletteFor(room || coming || previous);
+    const progress = !room && coming ? Math.min(1, Math.max(0, (sightline - previousBottom) / Math.max(1, comingTop - previousBottom))) : 0;
+    const blend = progress * progress * (3 - 2 * progress);
+    nextOpening = previous && coming && !room ? Math.sin(progress * Math.PI) : 0;
+    nextColors.forEach((color, band) => {
+      color.forEach((_, i) => { color[i] = leaving[band][i] + (arriving[band][i] - leaving[band][i]) * blend; });
+    });
+    if ((motion.matches || paused) && width && height) {
+      colors.forEach((color, band) => color.splice(0, 3, ...nextColors[band]));
+      opening = nextOpening;
+      draw(.7);
+    }
+  }
+  let width, height, scale, spacing;
+  let frame = 0;
+  let lastPaint = -Infinity;
+  const pointer = { x: .5, y: .5, strength: 0 };
+  const target = { x: .5, y: .5, strength: 0 };
+  const hover = matchMedia('(any-hover: hover)');
+
+  const colorSteps = 24;
+  const bands = Array.from({ length: colorSteps + 1 }, () => null);
+
+  function draw(angle) {
+    context.fillStyle = '#e6ead8';
+    context.fillRect(0, 0, width, height);
+    bands.fill(null);
+
+    // A rotated square lattice gives the diagonal print-screen texture.
+    const rowPitch = spacing / 2;
+    const aspect = Math.min(2.1, Math.max(.72, width / height));
+    const influence = Math.min(width, height) * .34;
+    const pointerX = pointer.x * width;
+    const pointerY = pointer.y * height;
+    const driftX = Math.cos(angle) * .16;
+    const driftY = Math.sin(angle) * .15;
+    for (let row = 0, y = 0; y <= height + rowPitch; row++, y += rowPitch) {
+      const v = y / height + driftY;
+      const current = Math.sin(v * 5.3 + angle) * .25;
+      for (let x = (row % 2) * rowPitch; x <= width + spacing; x += spacing) {
+        const dx = x - pointerX;
+        const dy = y - pointerY;
+        const pull = Math.max(0, 1 - (dx * dx + dy * dy) / (influence * influence)) ** 2 * pointer.strength;
+        const u = x / width * aspect + driftX;
+        const warpedX = u + current + .19 * Math.cos(u * 3.4 - v * 5.7 - angle) - dx / width * pull * .22;
+        const warpedY = v + .23 * Math.sin(u * 4.6 + v * 2.1 + angle) - dy / height * pull * .22;
+        const wave = .46
+          + .24 * Math.sin(warpedX * 6 + warpedY * 4.5 + angle)
+          + .17 * Math.cos(warpedX * 4 - warpedY * 9 - angle)
+          + .12 * Math.sin(warpedX * 11 + warpedY * 7);
+        const tone = Math.min(1, Math.max(0, (wave - .24 + pull * .12 + opening * .07) / .55));
+        const radius = spacing * (.018 + .37 * tone ** 1.5);
+        const hue = .5 + .27 * Math.sin(warpedX * 3.2 + warpedY * 4.1 - angle)
+          + .23 * Math.cos(warpedX * 7.1 - warpedY * 3.9);
+        const index = Math.round(Math.max(0, Math.min(1, hue)) * colorSteps);
+        const band = bands[index] ?? (bands[index] = new Path2D());
+        band.moveTo(x + radius, y);
+        band.arc(x, y, radius, 0, Math.PI * 2);
+      }
+    }
+    bands.forEach((band, index) => {
+      if (!band) return;
+      const position = index / colorSteps * 2;
+      const left = Math.min(1, Math.floor(position));
+      const mix = position - left;
+      const rgb = colors[left].map((channel, i) => Math.round(channel + (colors[left + 1][i] - channel) * mix));
+      context.fillStyle = 'rgb(' + rgb.join(',') + ')';
+      context.fill(band);
+    });
+  }
+
+  function animate(time) {
+    if (time - lastPaint >= 1000 / 30) {
+      colors.forEach((color, band) => {
+        for (let channel = 0; channel < color.length; channel++) {
+          color[channel] += (nextColors[band][channel] - color[channel]) * .04;
+        }
+      });
+      opening += (nextOpening - opening) * .055;
+      pointer.x += (target.x - pointer.x) * .12;
+      pointer.y += (target.y - pointer.y) * .12;
+      pointer.strength += (target.strength - pointer.strength) * .08;
+      draw(time % cycle / cycle * Math.PI * 2);
+      lastPaint = time;
+    }
+    frame = requestAnimationFrame(animate);
+  }
+
+  function update() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    if (document.hidden) return;
+    if (motion.matches || paused) {
+      pointer.strength = target.strength = 0;
+      draw(.7);
+    }
+    else frame = requestAnimationFrame(animate);
+  }
+
+  function resize() {
+    scale = Math.min(devicePixelRatio || 1, 1.5);
+    width = canvas.clientWidth;
+    height = canvas.clientHeight;
+    if (!width || !height) return;
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    spacing = Math.max(4.8, Math.sqrt(width * height * 2 / 65000));
+    draw(.7);
+  }
+
+  addEventListener('pointermove', event => {
+    if (!hover.matches || motion.matches || paused || event.pointerType === 'touch') return;
+    target.x = event.clientX / innerWidth;
+    target.y = event.clientY / innerHeight;
+    target.strength = 1;
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => {
+    target.strength = 0;
+  });
+  addEventListener('blur', () => {
+    target.strength = 0;
+  });
+  let paletteFrame = 0;
+  function queuePalette() {
+    if (paletteFrame) return;
+    paletteFrame = requestAnimationFrame(() => {
+      paletteFrame = 0;
+      updatePalette();
+    });
+  }
+  addEventListener('scroll', queuePalette, { passive: true });
+  addEventListener('resize', () => {
+    resize();
+    queuePalette();
+  }, { passive: true });
+  document.addEventListener('visibilitychange', update);
+  control.hidden = motion.matches;
+  control.addEventListener('click', () => {
+    paused = !paused;
+    control.textContent = paused ? 'Включить фон' : 'Остановить фон';
+    update();
+  });
+  motion.addEventListener('change', () => {
+    control.hidden = motion.matches;
+    activeRoom = null;
+    updatePalette();
+    update();
+  });
+  const contents = document.querySelector('aside details');
+  contents.addEventListener('click', event => {
+    if (event.target.closest('a')) contents.open = false;
+  });
+  resize();
+  updatePalette();
+  update();
+})();
+</script>
+</body>
+</html>
