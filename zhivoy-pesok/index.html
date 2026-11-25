@@ -27,6 +27,7 @@
     overscroll-behavior: none;
   }
   body {
+    background: #eddbbb url('./sand-grain.jpg') center / cover no-repeat;
     font-family: Piazzolla, Georgia, serif;
     font-size: 17px;
     line-height: 1.45;
@@ -77,9 +78,17 @@
   }
   li.done { color: var(--ink); }
   li.done::before { background-color: var(--pigment); }
-  .chord { margin: .9rem 0 0; }
-  .music-controls { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1rem; margin-top: .7rem; font-size: .86rem; }
-  .music-controls select { margin-left: .45rem; font: inherit; color: var(--ink); background: #fff; border: 1px solid #27406e65; border-radius: .25rem; padding: .16rem .35rem; }
+  .pulse-status { margin: .7rem 0 .42rem; color: var(--soft); font-size: .85rem; }
+  .panel::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -1rem -1.25rem;
+    background: #f8efddad;
+    border-radius: 1.2rem;
+    filter: blur(12px);
+    pointer-events: none;
+  }
   #hints { max-height: 52svh; overflow: auto; overscroll-behavior: contain; }
   .status {
     display: flex;
@@ -127,21 +136,14 @@
   .stone[data-dragging] { cursor: grabbing; z-index: 2; }
   .stone[data-dragging]::before { filter: drop-shadow(4px 8px 5px #382d245a); }
   .stone[aria-pressed="false"]::before { opacity: .42; }
-  .stone-slate { --size: clamp(53px, 8vw, 92px); --sprite: 0%; --angle: -12deg; }
-  .stone-ochre { --size: clamp(48px, 7vw, 79px); --sprite: 50%; --angle: 19deg; }
-  .stone-granite { --size: clamp(44px, 6vw, 73px); --sprite: 100%; --angle: -23deg; }
+  .stone-slate { --size: clamp(77px, 11.5vw, 150px); --sprite: 0%; --angle: -12deg; }
+  .stone-ochre { --size: clamp(67px, 10vw, 126px); --sprite: 50%; --angle: 19deg; }
   .garden-object { --asset: url('./garden-objects.png'); --cells: 400%; }
-  .stone-basalt { --size: clamp(51px, 7.4vw, 84px); --sprite: 0%; --angle: -9deg; }
-  .stone-basalt::before { clip-path: ellipse(42% 40% at 50% 50%); }
-  .stone-flint { --size: clamp(44px, 6vw, 65px); --sprite: 33.333%; --angle: 10deg; }
-  .stone-flint::before { clip-path: polygon(11% 34%, 26% 23%, 33% 15%, 47% 10%, 62% 14%, 69% 22%, 78% 31%, 93% 45%, 93% 57%, 85% 70%, 76% 79%, 64% 85%, 48% 90%, 36% 89%, 20% 81%, 10% 71%, 8% 57%); }
-  .stone-lime { --size: clamp(45px, 6.5vw, 71px); --sprite: 66.667%; --angle: 13deg; }
-  .stone-lime::before { clip-path: ellipse(42% 38% at 50% 50%); }
   .branch { --size: clamp(64px, 9vw, 110px); --sprite: 100%; --angle: -17deg; }
+  .bowl, .leaf { --asset: url('./bowl-and-leaf.png'); --cells: 200%; }
+  .bowl { --size: clamp(71px, 9vw, 115px); --sprite: 0%; --angle: 9deg; cursor: pointer; }
+  .leaf { --size: clamp(62px, 7.5vw, 96px); --sprite: 100%; --angle: 15deg; }
   .branch::before { clip-path: polygon(1% 89%, 10% 80%, 29% 64%, 45% 48%, 54% 34%, 63% 23%, 76% 11%, 89% 0, 94% 0, 92% 8%, 80% 16%, 70% 27%, 62% 42%, 57% 51%, 67% 49%, 79% 44%, 89% 38%, 96% 37%, 93% 43%, 83% 50%, 69% 56%, 51% 60%, 37% 72%, 19% 88%, 10% 97%, 4% 98%); }
-  @media (hover: none) {
-    .desktop-only { display: none; }
-  }
   @media (max-height: 560px) {
     .lead { display: none; }
   }
@@ -150,13 +152,11 @@
 <body>
 <canvas id="plate" role="img" aria-label="Песок на вибрирующей пластине. Узор меняется от движений курсора, нажатий, колеса мыши и клавиш."></canvas>
 <div id="stones" hidden>
-  <button class="stone stone-slate" type="button" aria-label="Сланец" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone stone-ochre" type="button" aria-label="Кварцит" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone stone-granite" type="button" aria-label="Гранит" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone garden-object stone-basalt" type="button" aria-label="Базальт" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone garden-object stone-flint" type="button" aria-label="Розовый кремень" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone garden-object stone-lime" type="button" aria-label="Известняк" aria-describedby="stone-controls" aria-pressed="true"></button>
-  <button class="stone garden-object branch" id="branch" type="button" aria-label="Веточка" aria-describedby="branch-controls" aria-pressed="true"></button>
+  <button class="stone stone-slate" type="button" aria-label="Тёмный камень" aria-describedby="stone-controls" data-role="rock"></button>
+  <button class="stone stone-ochre" type="button" aria-label="Светлый камень" aria-describedby="stone-controls" data-role="rock"></button>
+  <button class="stone leaf" type="button" aria-label="Лист" aria-describedby="leaf-controls" data-role="leaf"></button>
+  <button class="stone garden-object branch" type="button" aria-label="Веточка" aria-describedby="branch-controls" aria-pressed="true" data-role="branch"></button>
+  <button class="stone bowl" type="button" aria-label="Поющая чаша" aria-describedby="bowl-controls" data-role="bowl"></button>
 </div>
 
 <section class="panel">
@@ -165,25 +165,14 @@
     <button class="hints-toggle" id="hints-toggle" type="button" aria-expanded="true" aria-controls="hints">Свернуть</button>
   </div>
   <div id="hints">
-  <p class="lead" id="lead">Из камней, песка и веточки можно собрать свою музыку.</p>
-  <ul>
-    <li data-action="move" style="--pigment: var(--indigo)"><span id="move-hint">Веди курсором, чтобы менять рисунок песка</span></li>
-    <li data-action="strike" style="--pigment: var(--garnet)">Нажми на песок: пойдёт волна и включится звук</li>
-    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Сдвинь тёмный сланец, чтобы сменить аккорд. Переложи другие камни и послушай, как меняется фраза. Касание включает или выключает голос.</li>
-    <li data-action="branch" id="branch-controls" style="--pigment: var(--moss)">Веточка слева играет на бамбуковой флейте, в центре на окарине, справа на свирели. Эхо длиннее справа, ноты выше наверху.</li>
-    <li data-action="wheel" class="desktop-only" style="--pigment: var(--ochre)">Крути колесо: вибрация сильнее или слабее</li>
-    <li data-action="keys" class="desktop-only" style="--pigment: var(--pine)">Жми буквы: звучит созвучие, меняется фигура</li>
-    <li data-action="tab" style="--pigment: var(--moss)">Смени вкладку и вернись: песок рассыплется</li>
-  </ul>
-  <p class="chord" id="chord">Бамбуковая флейта</p>
-  <div class="music-controls">
-    <label>Созвучие <select id="music-style">
-      <option value="0">Ре мажор</option>
-      <option value="1">Ре минор</option>
-      <option value="2">Открытый аккорд</option>
-    </select></label>
-    <button id="breathing" type="button" aria-pressed="true">Дыхание включено</button>
-  </div>
+    <p class="lead" id="lead">Собери свою музыку из песка и звуков.</p>
+    <ul>
+      <li data-action="rock" id="stone-controls" style="--pigment: var(--indigo)">Камни меняют гармонию.</li>
+      <li data-action="leaf" id="leaf-controls" style="--pigment: var(--moss)">Лист ближе к центру добавляет пульс.</li>
+      <li data-action="branch" id="branch-controls" style="--pigment: var(--pine)">Передвинь веточку, и прозвучит флейта.</li>
+      <li data-action="bowl" id="bowl-controls" style="--pigment: var(--ochre)">Коснись чаши, чтобы она зазвучала.</li>
+    </ul>
+    <p class="pulse-status" id="pulse-status">Пульс 0%</p>
   </div>
   <div class="status">
     <span id="readout">Вибрация 45%</span>
@@ -192,7 +181,7 @@
 </section>
 
 <script type="module">
-import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrangement';
+import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
 
 (() => {
   'use strict';
@@ -200,10 +189,8 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   const canvas = document.getElementById('plate');
   const panel = document.querySelector('.panel');
   const readout = document.getElementById('readout');
-  const chordLine = document.getElementById('chord');
+  const pulseStatus = document.getElementById('pulse-status');
   const soundButton = document.getElementById('sound');
-  const styleSelect = document.getElementById('music-style');
-  const breathingButton = document.getElementById('breathing');
   const hints = document.getElementById('hints');
   const hintsToggle = document.getElementById('hints-toggle');
   hintsToggle.addEventListener('click', () => {
@@ -213,7 +200,7 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   });
 
   const gl = canvas.getContext('webgl', {
-    alpha: false,
+    alpha: true,
     antialias: false,
     powerPreference: 'high-performance',
   });
@@ -224,16 +211,13 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   }
 
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (matchMedia('(hover: none)').matches) {
-    document.getElementById('move-hint').textContent = 'Веди пальцем, чтобы менять рисунок песка';
-  }
 
   const PIGMENT = {
-    indigo: [0.153, 0.251, 0.431],
-    pine: [0.122, 0.302, 0.251],
-    garnet: [0.482, 0.137, 0.216],
+    indigo: [0.41, 0.33, 0.26],
+    pine: [0.40, 0.37, 0.26],
+    garnet: [0.51, 0.35, 0.26],
   };
-  const OCHRE = [0.76, 0.58, 0.25];
+  const OCHRE = [0.71, 0.48, 0.26];
 
   /* ---------- Размеры и таблицы волны ---------- */
 
@@ -251,8 +235,8 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
     active: true,
     energy: 0,
   }));
-  const branch = objects.at(-1);
-  const stones = objects.slice(0, -1);
+  const [firstRock, secondRock, leaf, branch, bowl] = objects;
+  const stones = [firstRock, secondRock];
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -289,8 +273,8 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   resize();
   stoneLayer.hidden = false;
   const stonePositions = W < 650
-    ? [[.21, .16], [.53, .12], [.81, .18], [.33, .29], [.68, .32], [.86, .39], [.24, .40]]
-    : [[.54, .35], [.73, .43], [.88, .27], [.69, .69], [.86, .54], [.93, .77], [.24, .24]];
+    ? [[.22, .19], [.53, .28], [.81, .32], [.67, .12], [.82, .48]]
+    : [[.29, .27], [.52, .43], [.87, .56], [.73, .23], [.72, .70]];
   objects.forEach((stone, i) => {
     stone.size = stone.element.offsetWidth;
     placeStone(stone, W * stonePositions[i][0], H * stonePositions[i][1]);
@@ -304,10 +288,14 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   const vel = new Float32Array(COUNT * 2);
 
   function scatter() {
+    const top = Math.max(1, Math.min(keepTop, H));
+    const side = Math.max(0, Math.min(keepRight, W));
+    const abovePanel = W * top;
+    const besidePanel = (W - side) * (H - top);
     for (let i = 0; i < COUNT; i++) {
-      const x = Math.random() * W;
-      pos[i * 2] = x;
-      pos[i * 2 + 1] = Math.random() * (x < keepRight ? Math.max(keepTop, 1) : H);
+      const above = Math.random() * (abovePanel + besidePanel) < abovePanel;
+      pos[i * 2] = above ? Math.random() * W : side + Math.random() * (W - side);
+      pos[i * 2 + 1] = above ? Math.random() * top : top + Math.random() * (H - top);
       vel[i * 2] = 0;
       vel[i * 2 + 1] = 0;
     }
@@ -480,7 +468,7 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
       gl_Position = vec4(c.x, -c.y, 0.0, 1.0);
       gl_PointSize = aGrain.y * uDpr;
       vColor = mix(uHeavy, uLight, aGrain.x) * aGrain.z;
-      vAlpha = mix(0.92, 0.6, aGrain.x);
+      vAlpha = mix(0.72, 0.49, aGrain.x);
     }
   `));
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
@@ -525,8 +513,8 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   gl.uniform3fv(gl.getUniformLocation(program, 'uLight'), OCHRE);
 
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.clearColor(1, 1, 1, 1);
+  gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.clearColor(0, 0, 0, 0);
 
   function draw() {
     for (let i = 0; i < 3; i++) heavyColor[i] += (heavyTarget[i] - heavyColor[i]) * 0.05;
@@ -541,53 +529,78 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
 
   /* ---------- Звук ---------- */
 
-  let audio = null, instrument = null;
-  let soundOn = true, breathing = true;
-
-  function audioPosition(object) {
-    return { x: object.x / W, y: object.y / H, active: object.active };
-  }
+  let audio, instrument, loading;
+  let soundOn = true;
+  let pendingUpdate = false;
 
   function updateInstrument() {
-    const flute = fluteAt(branch.x / W);
-    const scene = {
-      stones: stones.map(audioPosition),
-      branch: audioPosition(branch),
-      harmony: Number(styleSelect.value),
-      breathing,
+    const pulse = leafPulse(leaf.x / W, leaf.y / H);
+    const status = `Пульс ${Math.round(pulse * 100)}%`;
+    if (pulseStatus.textContent !== status) pulseStatus.textContent = status;
+    instrument?.update({
+      pulse,
+      harmony: stoneHarmony(firstRock.x / W, secondRock.x / W),
+      flute: branch.active,
+      branchX: branch.x / W,
+      branchY: branch.y / H,
       muted: !soundOn,
-    };
-    const score = instrument?.update(scene) ?? scoreGarden(scene.stones, scene.harmony);
-    const status = `${score.chord.name} · ${branch.active ? flute.name : 'Флейта выключена'}`;
-    if (chordLine.textContent !== status) chordLine.textContent = status;
+    });
   }
 
-  function startAudio() {
+  function updateAfterMove() {
+    if (pendingUpdate) return;
+    pendingUpdate = true;
+    requestAnimationFrame(() => {
+      pendingUpdate = false;
+      updateInstrument();
+    });
+  }
+
+  function loadSound() {
     if (!audio) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
+      if (!AudioContext) {
+        soundButton.textContent = 'Звук недоступен';
+        return Promise.resolve(null);
+      }
       audio = new AudioContext();
-      instrument = createAmbientGarden(audio);
-      updateInstrument();
-      setInterval(updateInstrument, 160);
     }
-    if (audio.state === 'suspended') audio.resume().catch(() => {});
-    soundButton.textContent = soundOn ? 'Выключить звук' : 'Включить звук';
+    if (audio.state !== 'running') audio.resume().catch(() => {});
+    if (instrument) return Promise.resolve(instrument);
+    if (!loading) {
+      soundButton.textContent = 'Загружаю звук…';
+      soundButton.disabled = true;
+      loading = createSoundscape(audio).then((garden) => {
+        instrument = garden;
+        updateInstrument();
+        soundButton.textContent = soundOn ? 'Выключить звук' : 'Включить звук';
+        return garden;
+      }).catch((error) => {
+        console.error(error);
+        soundButton.textContent = 'Повторить загрузку звука';
+        return null;
+      }).finally(() => {
+        loading = undefined;
+        soundButton.disabled = false;
+      });
+    }
+    return loading;
   }
 
   soundButton.addEventListener('click', () => {
-    if (audio) soundOn = !soundOn;
-    startAudio();
+    if (!instrument) {
+      loadSound();
+      return;
+    }
+    soundOn = !soundOn;
+    loadSound();
     updateInstrument();
+    soundButton.textContent = soundOn ? 'Выключить звук' : 'Включить звук';
   });
 
-  breathingButton.addEventListener('click', () => {
-    breathing = !breathing;
-    breathingButton.setAttribute('aria-pressed', String(breathing));
-    breathingButton.textContent = breathing ? 'Дыхание включено' : 'Дыхание выключено';
-    updateInstrument();
-  });
-  styleSelect.addEventListener('change', updateInstrument);
+  function playGesture(name, object, amount) {
+    loadSound().then((garden) => garden?.play(name, object.x / W, amount));
+  }
 
   /* ---------- Действия в браузере ---------- */
 
@@ -616,55 +629,64 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
     const speed = Math.hypot(stone.x - oldX, stone.y - oldY);
     stone.energy = Math.min(1, stone.energy + speed * 0.04);
     lastTouch = performance.now();
-    mark(stone === branch ? 'branch' : 'stones');
+    mark(stone.element.dataset.role);
+    updateAfterMove();
   }
 
   const arrowOffsets = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-  for (const [index, stone] of objects.entries()) {
+  for (const stone of objects) {
     const { element } = stone;
     let drag = null, moved = false;
-    element.addEventListener('pointerdown', (event) => {
-      if (drag || event.button !== 0) return;
-      startAudio();
-      moved = false;
-      drag = { id: event.pointerId, x: event.clientX - stone.x, y: event.clientY - stone.y, startX: event.clientX, startY: event.clientY };
-      element.setPointerCapture(event.pointerId);
-      element.dataset.dragging = '';
-    });
-    element.addEventListener('pointermove', (event) => {
-      if (drag?.id !== event.pointerId) return;
-      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) moved = true;
-      if (moved) moveStone(stone, event.clientX - drag.x, event.clientY - drag.y);
-    });
-    element.addEventListener('pointerup', () => {
-      if (!moved) return;
-      updateInstrument();
-      if (stone === branch) instrument?.playFlute();
-      else instrument?.playStone(index);
-    });
-    element.addEventListener('lostpointercapture', () => {
-      drag = null;
-      delete element.dataset.dragging;
-    });
+    if (stone !== bowl) {
+      element.addEventListener('pointerdown', (event) => {
+        if (drag || event.button !== 0) return;
+        moved = false;
+        drag = { id: event.pointerId, x: event.clientX - stone.x, y: event.clientY - stone.y, startX: event.clientX, startY: event.clientY };
+        element.setPointerCapture(event.pointerId);
+        element.dataset.dragging = '';
+      });
+      element.addEventListener('pointermove', (event) => {
+        if (drag?.id !== event.pointerId) return;
+        if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) moved = true;
+        if (moved) moveStone(stone, event.clientX - drag.x, event.clientY - drag.y);
+      });
+      element.addEventListener('pointerup', () => {
+        if (!moved) return;
+        updateInstrument();
+        if (stone === branch) playGesture('flute-call', branch, .90);
+        else if (stone === leaf) loadSound();
+        else playGesture('stone-brush', stone, .78);
+      });
+      element.addEventListener('lostpointercapture', () => {
+        drag = null;
+        delete element.dataset.dragging;
+      });
+      element.addEventListener('keydown', (event) => {
+        const offset = arrowOffsets[event.key];
+        if (!offset) return;
+        event.preventDefault();
+        const step = event.shiftKey ? 30 : 12;
+        moveStone(stone, stone.x + offset[0] * step, stone.y + offset[1] * step);
+        loadSound();
+      });
+    }
     element.addEventListener('click', (event) => {
       if (moved && event.detail > 0) return;
-      stone.active = !stone.active;
-      element.setAttribute('aria-pressed', String(stone.active));
-      startAudio();
-      updateInstrument();
-      if (stone === branch && stone.active) instrument?.playFlute();
-      else if (stone.active) instrument?.playStone(index);
-    });
-    element.addEventListener('keydown', (event) => {
-      const offset = arrowOffsets[event.key];
-      if (!offset) return;
-      event.preventDefault();
-      startAudio();
-      const step = event.shiftKey ? 30 : 12;
-      moveStone(stone, stone.x + offset[0] * step, stone.y + offset[1] * step);
-      updateInstrument();
-      if (stone === branch) instrument?.playFlute();
-      else if (!event.repeat) instrument?.playStone(index, .65);
+      if (stone === bowl) {
+        playGesture('bowl-hit', bowl, .94);
+      } else if (stone === leaf) {
+        const centered = leafPulse(leaf.x / W, leaf.y / H) > .42;
+        moveStone(leaf, W * (centered ? .87 : .52), H * (centered ? .40 : .43));
+        loadSound();
+      } else if (stone === branch) {
+        branch.active = !branch.active;
+        branch.element.setAttribute('aria-pressed', String(branch.active));
+        updateInstrument();
+        if (branch.active) playGesture('flute-call', branch, .90);
+      } else {
+        playGesture('stone-brush', stone, .78);
+      }
+      mark(element.dataset.role);
     });
   }
 
@@ -680,26 +702,23 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
     if (lastX !== null) {
       const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY);
       excite = Math.min(1, excite + speed * 0.0012);
-      if (speed > 0) mark('move');
     }
     lastX = event.clientX;
     lastY = event.clientY;
   });
 
   canvas.addEventListener('pointerdown', (event) => {
-    startAudio();
+    loadSound();
     lastTouch = performance.now();
     strikes.push({ x: event.clientX, y: event.clientY, r: 0, power: calm ? 3 : 6 });
     if (strikes.length > 4) strikes.shift();
     excite = Math.min(1, excite + 0.4);
-    instrument?.playStone(Math.floor(event.clientX / W * stones.length), .48);
-    mark('strike');
+    if (instrument) instrument.play('stone-brush', event.clientX / W, .24);
   });
 
   addEventListener('wheel', (event) => {
     if (event.target instanceof Element && panel.contains(event.target)) return;
     drive = Math.min(1, Math.max(0.05, drive - event.deltaY * 0.0008));
-    mark('wheel');
   }, { passive: true });
 
   const pairs = [];
@@ -717,30 +736,27 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   ]) {
     for (const letter of letters) {
       const pair = pairs[Math.round(keyIndex * (pairs.length - 1) / 25)];
-      KEYS['Key' + letter] = { n: pair[0], m: pair[1], pigment, note: keyIndex % stones.length };
+      KEYS['Key' + letter] = { n: pair[0], m: pair[1], pigment };
       keyIndex++;
     }
   }
 
   addEventListener('keydown', (event) => {
-    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target === styleSelect) return;
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
     const key = KEYS[event.code];
     if (!key) return;
-    startAudio();
+    loadSound();
     lastTouch = performance.now();
     targetN = key.n;
     targetM = key.m;
     heavyTarget = key.pigment;
     excite = 1;
-    instrument?.playStone(key.note, .6);
-    mark('keys');
   });
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     scatter();
     excite = 1;
-    mark('tab');
   });
 
   addEventListener('resize', () => {
@@ -785,6 +801,7 @@ import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js?v=arrang
   new ResizeObserver(() => {
     measurePanel();
     for (const stone of objects) placeStone(stone, stone.x, stone.y);
+    updateInstrument();
   }).observe(panel);
 
   updateInstrument();
