@@ -1,8 +1,19 @@
-const ROOT = 146.8324;
 const HARMONIES = [
-  [1 / 2, 3 / 4, 1, 5 / 4, 3 / 2, 9 / 4],
-  [1 / 2, 3 / 4, 1, 6 / 5, 3 / 2, 9 / 4],
-  [1 / 2, 3 / 4, 1, 4 / 3, 3 / 2, 9 / 4],
+  [
+    { name: 'Gmaj7', notes: [43, 50, 54, 59, 62, 66] },
+    { name: 'Dadd9', notes: [38, 45, 50, 54, 57, 64] },
+    { name: 'Bm7', notes: [47, 54, 57, 62, 66, 69] },
+  ],
+  [
+    { name: 'B♭maj7', notes: [46, 53, 57, 62, 65, 69] },
+    { name: 'Dm9', notes: [38, 45, 50, 53, 60, 64] },
+    { name: 'Gm9', notes: [43, 50, 53, 57, 58, 69] },
+  ],
+  [
+    { name: 'G6sus2', notes: [43, 50, 57, 62, 64, 69] },
+    { name: 'Dsus4/9', notes: [38, 45, 50, 55, 57, 64] },
+    { name: 'Asus4', notes: [45, 52, 57, 62, 64, 69] },
+  ],
 ];
 
 const STONES = [
@@ -20,11 +31,29 @@ const FLUTES = [
   { name: 'Обертоновая свирель', partials: [1, .29, .19, .045, .127], air: .23, cutoff: 2270, bend: 18, attack: .32, register: 1.5 },
 ];
 
-export const fluteAt = (x) => FLUTES[Math.min(2, Math.max(0, Math.floor(x * 3)))];
+const zone = (x) => Math.min(2, Math.max(0, Math.floor(x * 3)));
+export const fluteAt = (x) => FLUTES[zone(x)];
 const mix = (from, to, t) => from + (to - from) * t;
+const hz = (note) => 440 * 2 ** ((note - 69) / 12);
+
+export function scoreGarden(stones, family) {
+  const active = stones.map((stone, i) => ({ ...stone, i })).filter(({ active }) => active);
+  const anchor = active.find(({ i }) => i === 0) ?? active[0] ?? stones[0];
+  const center = active.length ? active.reduce((sum, stone) => sum + stone.x, 0) / active.length : anchor.x;
+  const chord = (HARMONIES[family] ?? HARMONIES[0])[zone(mix(anchor.x, center, .24))];
+  const notes = stones.map(({ x }, i) => i < 2 ? chord.notes[i] : chord.notes[2 + (i + zone(x)) % 4]);
+  const order = active.filter(({ i }) => i !== anchor.i).sort((a, b) => a.x - b.x || a.y - b.y).map(({ i }) => i);
+  const spread = active.length > 1 ? active.reduce((sum, stone) => {
+    const nearest = Math.min(...active.filter((other) => other !== stone).map((other) => Math.hypot(stone.x - other.x, stone.y - other.y)));
+    return sum + nearest;
+  }, 0) / active.length : .5;
+  return { chord, notes, order, spacing: Math.min(1, spread * 3) };
+}
 
 export function createAmbientGarden(context, destination = context.destination) {
   const input = context.createGain();
+  const drone = context.createGain();
+  drone.connect(input);
   const volume = context.createGain();
   volume.gain.value = 0;
   const limiter = context.createDynamicsCompressor();
@@ -46,9 +75,14 @@ export function createAmbientGarden(context, destination = context.destination) 
   const fluteWaves = FLUTES.map(({ partials }) => wave(partials));
   const voices = STONES.map(buildVoice);
   let scene;
+  let score;
   let nextFlute = context.currentTime + 8;
   let lastFlute = -Infinity;
   let fluteTurn = 0;
+  let flutePhrase;
+  let nextStoneNote = context.currentTime + 3.8;
+  let stoneTurn = 0;
+  let breathPhase = 0, lastUpdate = context.currentTime;
 
   function wave(partials) {
     return context.createPeriodicWave(new Float32Array(partials.length + 1), Float32Array.from([0, ...partials]));
@@ -72,9 +106,12 @@ export function createAmbientGarden(context, destination = context.destination) 
     filter.frequency.value = cutoff;
     const send = context.createGain();
     send.gain.value = 0;
+    const trim = context.createBiquadFilter();
+    trim.type = 'highpass';
+    trim.frequency.value = 145;
     const reverb = context.createConvolver();
     reverb.buffer = impulse;
-    input.connect(send).connect(filter).connect(reverb).connect(lowCut);
+    input.connect(send).connect(trim).connect(filter).connect(reverb).connect(lowCut);
     return send.gain;
   }
 
@@ -113,7 +150,7 @@ export function createAmbientGarden(context, destination = context.destination) 
     const pan = context.createStereoPanner();
     body.connect(low).connect(filter);
     octave.connect(high).connect(filter);
-    filter.connect(swell).connect(pan).connect(input);
+    filter.connect(swell).connect(pan).connect(drone);
     body.start();
     octave.start();
     lfo.start();
@@ -121,16 +158,18 @@ export function createAmbientGarden(context, destination = context.destination) 
     return { body, octave, low, high, filter, breathDepth, pan };
   }
 
-  function harmony() {
-    return HARMONIES[scene.harmony] ?? HARMONIES[0];
-  }
-
   function update(nextScene) {
-    const first = !scene;
+    const previous = score;
     scene = nextScene;
     const now = context.currentTime;
     const { stones, branch, breathing, muted } = scene;
-    const tuning = harmony();
+    score = scoreGarden(stones, scene.harmony);
+    const elapsed = now - lastUpdate;
+    lastUpdate = now;
+    breathPhase = (breathPhase + elapsed / (10.8 + 1.4 * Math.sin(now / 17))) % 1;
+    const rise = breathPhase < .35 ? breathPhase / .35 : (1 - breathPhase) / .65;
+    const swell = Math.sin(Math.PI * .5 * rise) ** 2;
+    drone.gain.setTargetAtTime(breathing ? mix(.37, 1.02, swell) : .80, now, .50);
     volume.gain.setTargetAtTime(muted ? 0 : .82, now, .17);
     const distance = branch.x ** 1.2;
     const wet = mix(.05, .78, distance);
@@ -142,45 +181,65 @@ export function createAmbientGarden(context, destination = context.destination) 
     for (const [i, stone] of stones.entries()) {
       const { body, octave, low, high, filter, breathDepth, pan } = voices[i];
       const register = 1 - stone.y;
-      const level = STONES[i].gain * (stone.active ? 1 : 0);
-      const freq = ROOT * tuning[i];
-      if (first) {
+      const movement = .5 + .5 * Math.sin(now * 2 * Math.PI / STONES[i].drift + i * 1.31);
+      const level = stone.active ? STONES[i].gain * mix(.51, 1.22, movement) : 0;
+      const freq = hz(score.notes[i]);
+      if (!previous) {
         body.frequency.setValueAtTime(freq, now);
         octave.frequency.setValueAtTime(freq * 2, now);
-      } else {
-        body.frequency.setTargetAtTime(freq, now, .58);
-        octave.frequency.setTargetAtTime(freq * 2, now, .58);
+      } else if (score.notes[i] !== previous.notes[i]) {
+        body.frequency.setTargetAtTime(freq, now, .28);
+        octave.frequency.setTargetAtTime(freq * 2, now, .28);
       }
-      low.gain.setTargetAtTime(level * mix(1.38, .31, register), now, .30);
-      high.gain.setTargetAtTime(level * mix(.025, .94, register ** 1.35), now, .42);
-      filter.frequency.setTargetAtTime(210 + 1980 * stone.x ** 1.8 + 430 * register, now, .25);
+      low.gain.setTargetAtTime(level * mix(1.47, .12, register), now, .30);
+      high.gain.setTargetAtTime(level * mix(.02, 1.52, register ** 1.32), now, .42);
+      filter.frequency.setTargetAtTime(170 + 2300 * stone.x ** 2 + 480 * register + 330 * movement, now, .28);
       pan.pan.setTargetAtTime((stone.x * 2 - 1) * .71, now, .25);
-      breathDepth.gain.setTargetAtTime(breathing ? .08 + .015 * (i % 3) : 0, now, .75);
+      breathDepth.gain.setTargetAtTime(breathing ? .035 : 0, now, .75);
+    }
+    if (now >= nextStoneNote) {
+      const drift = .5 + .5 * Math.sin(++stoneTurn * 2.37);
+      nextStoneNote = now + mix(4.3, 10.2, score.spacing) * mix(.84, 1.22, drift);
+      if (!muted && score.order.length) {
+        const index = score.order[stoneTurn % score.order.length];
+        playStone(index, .43);
+      }
     }
     if (now >= nextFlute) {
-      nextFlute = now + 19 + 12 * (.5 + .5 * Math.sin(++fluteTurn * 2.4));
+      nextFlute = now + 29 + 14 * (.5 + .5 * Math.sin(++fluteTurn * 2.4));
       if (branch.active && !muted) playFlute(false);
     }
+    if (flutePhrase && !branch.active) flutePhrase.gain.setTargetAtTime(0, now, .28);
+    return score;
   }
 
   function playFlute(direct = true) {
     if (!scene || scene.muted || !scene.branch.active) return;
     const now = context.currentTime;
-    if (now - lastFlute < (direct ? .65 : 4)) return;
+    if (now - lastFlute < (direct ? 1.3 : 4)) return;
     lastFlute = now;
-    if (direct) nextFlute = now + 22;
+    if (direct) nextFlute = now + 34;
     const { x, y } = scene.branch;
     const flute = fluteAt(x);
-    const notes = [1, 9 / 8, harmony()[3], 3 / 2, 2];
-    const slot = Math.min(4, Math.floor((1 - y) * notes.length));
-    fluteNote(ROOT * 2 * notes[slot] * flute.register, now, flute, x, direct ? .084 : .060, 2.8);
-    if (!direct && fluteTurn % 3 !== 0) {
-      const answer = Math.max(0, slot - 1);
-      fluteNote(ROOT * 2 * notes[answer] * flute.register, now + 3.75, flute, x, .043, 1.95);
+    const notes = score.chord.notes.slice(2);
+    const slot = Math.min(3, Math.floor((1 - y) * 4));
+    if (flutePhrase) flutePhrase.gain.setTargetAtTime(0, now, .28);
+    const phrase = context.createGain();
+    flutePhrase = phrase;
+    phrase.connect(input);
+    let lastTone = fluteNote(hz(notes[slot] + 12) * flute.register, now, flute, x, direct ? .083 : .059, 5.8 + y * 1.2, phrase);
+    if (!direct) {
+      const offset = fluteTurn % 2 ? 1 : 3;
+      const answer = (slot + offset) % notes.length;
+      lastTone = fluteNote(hz(notes[answer] + 12) * flute.register, now + 8.7, flute, x, .044, 5.1 + (1 - y) * 1.4, phrase);
     }
+    lastTone.addEventListener('ended', () => {
+      phrase.disconnect();
+      if (flutePhrase === phrase) flutePhrase = undefined;
+    }, { once: true });
   }
 
-  function fluteNote(freq, start, flute, x, level, length) {
+  function fluteNote(freq, start, flute, x, level, length, phrase) {
     const tone = context.createOscillator();
     tone.setPeriodicWave(fluteWaves[FLUTES.indexOf(flute)]);
     tone.frequency.value = freq;
@@ -215,30 +274,41 @@ export function createAmbientGarden(context, destination = context.destination) 
     const envelope = context.createGain();
     envelope.gain.setValueAtTime(0, start);
     envelope.gain.linearRampToValueAtTime(level, start + flute.attack);
-    envelope.gain.setTargetAtTime(level * .49, start + flute.attack, .7);
-    envelope.gain.setTargetAtTime(0, start + length - .7, .31);
+    envelope.gain.linearRampToValueAtTime(level * .61, start + length * .44);
+    envelope.gain.linearRampToValueAtTime(level * .83, start + length * .67);
+    envelope.gain.setTargetAtTime(0, start + length - .9, .39);
     const pan = context.createStereoPanner();
     pan.pan.value = (x * 2 - 1) * .44;
-    color.connect(envelope).connect(pan).connect(input);
+    color.connect(envelope).connect(pan).connect(phrase);
     for (const source of [tone, air, vibrato]) {
       source.start(start);
       source.stop(start + length + 1);
     }
+    return tone;
   }
 
-  function touch(index, strength = 1) {
+  function playStone(index, strength = 1) {
     if (!scene || scene.muted) return;
+    const stone = scene.stones[index];
+    if (!stone?.active) return;
     const tone = context.createOscillator();
     const level = context.createGain();
+    const pan = context.createStereoPanner();
+    const color = context.createBiquadFilter();
     const now = context.currentTime;
-    tone.frequency.value = ROOT * harmony()[index % STONES.length] * 2;
+    const octave = stone.y < .36 ? 24 : stone.y < .67 ? 12 : 0;
+    tone.setPeriodicWave(wave(STONES[index].partials));
+    tone.frequency.value = hz(score.notes[index] + octave);
+    color.type = 'lowpass';
+    color.frequency.value = 480 + 1700 * stone.x ** 1.4;
+    pan.pan.value = (stone.x * 2 - 1) * .67;
     level.gain.setValueAtTime(0, now);
-    level.gain.linearRampToValueAtTime(.033 * strength, now + .19);
-    level.gain.setTargetAtTime(0, now + .19, .57);
-    tone.connect(level).connect(input);
+    level.gain.linearRampToValueAtTime(.105 * strength, now + .33);
+    level.gain.setTargetAtTime(0, now + .42, 1.2);
+    tone.connect(color).connect(level).connect(pan).connect(input);
     tone.start();
-    tone.stop(now + 3.2);
+    tone.stop(now + 6);
   }
 
-  return { update, playFlute, touch };
+  return { update, playFlute, playStone };
 }

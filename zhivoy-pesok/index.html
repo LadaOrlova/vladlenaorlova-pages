@@ -169,7 +169,7 @@
   <ul>
     <li data-action="move" style="--pigment: var(--indigo)"><span id="move-hint">Веди курсором, чтобы менять рисунок песка</span></li>
     <li data-action="strike" style="--pigment: var(--garnet)">Нажми на песок: пойдёт волна и включится звук</li>
-    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Двигай камни, чтобы менять тембр и регистр. Нажми на камень, чтобы выключить или вернуть его голос.</li>
+    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Сдвинь тёмный сланец, чтобы сменить аккорд. Переложи другие камни и послушай, как меняется фраза. Касание включает или выключает голос.</li>
     <li data-action="branch" id="branch-controls" style="--pigment: var(--moss)">Веточка слева играет на бамбуковой флейте, в центре на окарине, справа на свирели. Эхо длиннее справа, ноты выше наверху.</li>
     <li data-action="wheel" class="desktop-only" style="--pigment: var(--ochre)">Крути колесо: вибрация сильнее или слабее</li>
     <li data-action="keys" class="desktop-only" style="--pigment: var(--pine)">Жми буквы: звучит созвучие, меняется фигура</li>
@@ -192,7 +192,7 @@
 </section>
 
 <script type="module">
-import { createAmbientGarden, fluteAt } from './ambient.js';
+import { createAmbientGarden, fluteAt, scoreGarden } from './ambient.js';
 
 (() => {
   'use strict';
@@ -550,16 +550,16 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
 
   function updateInstrument() {
     const flute = fluteAt(branch.x / W);
-    const status = branch.active ? flute.name : 'Флейта выключена';
-    if (chordLine.textContent !== status) chordLine.textContent = status;
-    if (!instrument) return;
-    instrument.update({
+    const scene = {
       stones: stones.map(audioPosition),
       branch: audioPosition(branch),
       harmony: Number(styleSelect.value),
       breathing,
       muted: !soundOn,
-    });
+    };
+    const score = instrument?.update(scene) ?? scoreGarden(scene.stones, scene.harmony);
+    const status = `${score.chord.name} · ${branch.active ? flute.name : 'Флейта выключена'}`;
+    if (chordLine.textContent !== status) chordLine.textContent = status;
   }
 
   function startAudio() {
@@ -620,7 +620,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
   }
 
   const arrowOffsets = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-  for (const stone of objects) {
+  for (const [index, stone] of objects.entries()) {
     const { element } = stone;
     let drag = null, moved = false;
     element.addEventListener('pointerdown', (event) => {
@@ -637,10 +637,10 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
       if (moved) moveStone(stone, event.clientX - drag.x, event.clientY - drag.y);
     });
     element.addEventListener('pointerup', () => {
-      if (moved && stone === branch) {
-        updateInstrument();
-        instrument?.playFlute();
-      }
+      if (!moved) return;
+      updateInstrument();
+      if (stone === branch) instrument?.playFlute();
+      else instrument?.playStone(index);
     });
     element.addEventListener('lostpointercapture', () => {
       drag = null;
@@ -653,6 +653,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
       startAudio();
       updateInstrument();
       if (stone === branch && stone.active) instrument?.playFlute();
+      else if (stone.active) instrument?.playStone(index);
     });
     element.addEventListener('keydown', (event) => {
       const offset = arrowOffsets[event.key];
@@ -663,6 +664,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
       moveStone(stone, stone.x + offset[0] * step, stone.y + offset[1] * step);
       updateInstrument();
       if (stone === branch) instrument?.playFlute();
+      else if (!event.repeat) instrument?.playStone(index, .65);
     });
   }
 
@@ -690,7 +692,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
     strikes.push({ x: event.clientX, y: event.clientY, r: 0, power: calm ? 3 : 6 });
     if (strikes.length > 4) strikes.shift();
     excite = Math.min(1, excite + 0.4);
-    instrument?.touch(Math.floor(event.clientX / W * stones.length), .6);
+    instrument?.playStone(Math.floor(event.clientX / W * stones.length), .48);
     mark('strike');
   });
 
@@ -730,7 +732,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
     targetM = key.m;
     heavyTarget = key.pigment;
     excite = 1;
-    instrument?.touch(key.note);
+    instrument?.playStone(key.note, .6);
     mark('keys');
   });
 
@@ -785,6 +787,7 @@ import { createAmbientGarden, fluteAt } from './ambient.js';
     for (const stone of objects) placeStone(stone, stone.x, stone.y);
   }).observe(panel);
 
+  updateInstrument();
   if (calm) for (let i = 0; i < 240; i++) step();
   requestAnimationFrame(frame);
 })();
