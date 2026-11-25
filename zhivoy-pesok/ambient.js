@@ -57,8 +57,8 @@ export function createAmbientGarden(context, destination = context.destination) 
   const volume = context.createGain();
   volume.gain.value = 0;
   const limiter = context.createDynamicsCompressor();
-  limiter.threshold.value = -17;
-  limiter.knee.value = 12;
+  limiter.threshold.value = -10;
+  limiter.knee.value = 8;
   limiter.ratio.value = 5;
   limiter.attack.value = .018;
   limiter.release.value = .3;
@@ -169,8 +169,8 @@ export function createAmbientGarden(context, destination = context.destination) 
     breathPhase = (breathPhase + elapsed / (10.8 + 1.4 * Math.sin(now / 17))) % 1;
     const rise = breathPhase < .35 ? breathPhase / .35 : (1 - breathPhase) / .65;
     const swell = Math.sin(Math.PI * .5 * rise) ** 2;
-    drone.gain.setTargetAtTime(breathing ? mix(.37, 1.02, swell) : .80, now, .50);
-    volume.gain.setTargetAtTime(muted ? 0 : .82, now, .17);
+    drone.gain.setTargetAtTime(breathing ? mix(.21, 1.02, swell) : .80, now, .37);
+    volume.gain.setTargetAtTime(muted ? 0 : .74, now, .17);
     const distance = branch.x ** 1.2;
     const wet = mix(.05, .78, distance);
     const roomSize = .08 + .70 * branch.x + .22 * (1 - branch.y);
@@ -302,13 +302,14 @@ export function createAmbientGarden(context, destination = context.destination) 
     color.type = 'lowpass';
     color.frequency.value = 480 + 1700 * stone.x ** 1.4;
     pan.pan.value = (stone.x * 2 - 1) * .67;
+    level.gain.value = 0;
     level.gain.setValueAtTime(0, now);
     level.gain.linearRampToValueAtTime(.105 * strength, now + .33);
     level.gain.setTargetAtTime(0, now + .42, 1.2);
     tone.connect(color).connect(level).connect(pan).connect(input);
-    tone.start();
+    tone.start(now);
     tone.stop(now + 6);
   }
 
-  return { update, playFlute, playStone };
+  return { update, playFlute, playStone, touch: playStone };
 }
