@@ -78,6 +78,8 @@
   li.done { color: var(--ink); }
   li.done::before { background-color: var(--pigment); }
   .chord { margin: .9rem 0 0; }
+  .music-controls { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1rem; margin-top: .7rem; font-size: .86rem; }
+  .music-controls select { margin-left: .45rem; font: inherit; color: var(--ink); background: #fff; border: 1px solid #27406e65; border-radius: .25rem; padding: .16rem .35rem; }
   .status {
     display: flex;
     justify-content: space-between;
@@ -152,12 +154,21 @@
   <ul>
     <li data-action="move" style="--pigment: var(--indigo)"><span id="move-hint">Веди курсором: узор меняется, песок шуршит</span></li>
     <li data-action="strike" style="--pigment: var(--garnet)">Нажми на песок: пойдёт волна и включится звук</li>
-    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Двигай камни мышью, пальцем или стрелками. Сближай их, чтобы услышать аккорд.</li>
+    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Двигай камни. Слева звук мягче, в центре дышит, справа звенит. Веди выше для светлых тонов, сближай разные пары для смены аккорда.</li>
     <li data-action="wheel" class="desktop-only" style="--pigment: var(--ochre)">Крути колесо: вибрация сильнее или слабее</li>
     <li data-action="keys" class="desktop-only" style="--pigment: var(--pine)">Жми буквы: звучит созвучие, меняется фигура</li>
     <li data-action="tab" style="--pigment: var(--moss)">Смени вкладку и вернись: песок рассыплется</li>
   </ul>
   <p class="chord" id="chord">Песок собирается</p>
+  <div class="music-controls">
+    <label>Музыка <select id="music-style">
+      <option value="auto">По положению камня</option>
+      <option value="0">Тёплый дрон</option>
+      <option value="1">Даб с эхом</option>
+      <option value="2">Перезвон</option>
+    </select></label>
+    <button id="breathing" type="button" aria-pressed="true">Дыхание включено</button>
+  </div>
   </div>
   <div class="status">
     <span id="readout">Вибрация 45%</span>
@@ -174,6 +185,8 @@
   const readout = document.getElementById('readout');
   const chordLine = document.getElementById('chord');
   const soundButton = document.getElementById('sound');
+  const styleSelect = document.getElementById('music-style');
+  const breathingButton = document.getElementById('breathing');
   const hints = document.getElementById('hints');
   const hintsToggle = document.getElementById('hints-toggle');
   hintsToggle.addEventListener('click', () => {
@@ -513,8 +526,43 @@
   /* ---------- Звук ---------- */
 
   // Браузер включает звук только после клика или клавиши, движения мыши ему мало.
-  let audio = null, output = null, bed = null, stoneVoices = null;
+  let audio = null, output = null, bed = null, stoneVoices = null, stonePads = null;
   let soundOn = true;
+  let activeStoneChord = -1;
+  let activeStyle = -1, playingStone = stones[0];
+  let phraseStart = 0, phraseEvent = 0, phraseTurn = 0, lastPhraseNote = -1;
+  let breathing = true, breathMix = 1, breathPhase = 0, breathLevel = 0, lastBreathTime = 0;
+
+  // У трёх аккордов есть общие ноты. Меняются бас и окраска, а общие голоса остаются слышны.
+  const STONE_CHORDS = [
+    { pair: [0, 1], name: 'Aadd9', notes: [45, 52, 59, 61], phrase: [57, 61, 64, 71] },
+    { pair: [1, 2], name: 'F♯m7', notes: [42, 52, 57, 61], phrase: [54, 57, 61, 64] },
+    { pair: [0, 2], name: 'Esus4', notes: [40, 52, 57, 59], phrase: [52, 57, 59, 64] },
+  ];
+  // События фразы: время, голос аккорда, сдвиг регистра в полутонах, сила ноты.
+  const STYLES = [
+    { name: 'Тёплый дрон', period: 10.8, attack: 0.40, tail: 2.1,
+      events: [[0, 0, -12, 0.32], [2.4, 2, 0, 0.20], [5.9, 1, 0, 0.16]] },
+    { name: 'Даб с эхом', period: 4.8, attack: 0.10, tail: 0.88,
+      events: [[0, 0, 0, 0.33], [0.76, 2, 0, 0.34], [1.13, 2, 0, 0.16], [1.50, 2, 0, 0.075], [2.14, 1, 0, 0.26], [2.51, 1, 0, 0.11], [3.25, 3, 0, 0.21]] },
+    { name: 'Перезвон', period: 7.2, attack: 0.22, tail: 1.28,
+      events: [[0, 1, 12, 0.26], [0.48, 3, 12, 0.17], [1.22, 2, 12, 0.22], [2.71, 0, 12, 0.14], [4.33, 3, 0, 0.14]] },
+  ];
+  const noteHz = (note) => 440 * 2 ** ((note - 69) / 12);
+  function smoothBetween(low, high, value) {
+    const t = Math.max(0, Math.min(1, (value - low) / (high - low)));
+    return t * t * (3 - 2 * t);
+  }
+
+  breathingButton.addEventListener('click', () => {
+    breathing = !breathing;
+    breathingButton.setAttribute('aria-pressed', String(breathing));
+    breathingButton.textContent = breathing ? 'Дыхание включено' : 'Дыхание выключено';
+  });
+  styleSelect.addEventListener('change', () => {
+    startAudio();
+    updateStoneVoices();
+  });
 
   // Все ноты — обертоны одного низкого тона 55 Гц: их призвуки совпадают и не бьются.
   // По расчёту шершавости такой строй с расстановкой нот втрое мягче пентатоники.
@@ -549,6 +597,7 @@
     output.connect(softRoom()).connect(wet).connect(limiter);
     bed = buildBed();
     stoneVoices = buildStoneVoices();
+    stonePads = buildStonePads();
     updateStoneVoices();
     showSoundState();
   }
@@ -661,43 +710,124 @@
     return stones.map((stone, i) => {
       const drone = audio.createOscillator();
       const droneLevel = audio.createGain();
-      const chord = audio.createOscillator();
-      const chordLevel = audio.createGain();
+      const overtone = audio.createOscillator();
+      const overtoneLevel = audio.createGain();
+      const breath = audio.createOscillator();
+      const breathDepth = audio.createGain();
       const soft = audio.createBiquadFilter();
       const pan = audio.createStereoPanner();
       drone.setPeriodicWave(timbre);
       drone.frequency.value = stone.pitch;
-      chord.setPeriodicWave(timbre);
-      chord.frequency.value = [220, 275, 330][i];
+      overtone.setPeriodicWave(timbre);
+      overtone.frequency.value = stone.pitch * 4;
+      breath.frequency.value = 0.13 + i * 0.023;
       droneLevel.gain.value = 0;
-      chordLevel.gain.value = 0;
+      overtoneLevel.gain.value = 0;
+      breathDepth.gain.value = 0;
       soft.type = 'lowpass';
       soft.Q.value = 0.3;
       drone.connect(droneLevel).connect(soft);
-      chord.connect(chordLevel).connect(soft);
+      overtone.connect(overtoneLevel).connect(soft);
+      breath.connect(breathDepth).connect(droneLevel.gain);
       soft.connect(pan).connect(output);
       drone.start();
-      chord.start();
-      return { droneLevel, chordLevel, soft, pan };
+      overtone.start();
+      breath.start();
+      return { droneLevel, overtoneLevel, breathDepth, soft, pan };
+    });
+  }
+
+  function buildStonePads() {
+    return STONE_CHORDS.map(({ notes }) => {
+      const level = audio.createGain();
+      level.gain.value = 0;
+      level.connect(output);
+      notes.forEach((note, i) => {
+        const tone = audio.createOscillator();
+        const voice = audio.createGain();
+        const pan = audio.createStereoPanner();
+        tone.frequency.value = noteHz(note);
+        voice.gain.value = [1, 0.62, 0.48, 0.37][i];
+        pan.pan.value = [0, -0.24, 0.22, 0.13][i];
+        tone.connect(voice).connect(pan).connect(level);
+        tone.start();
+      });
+      return level;
     });
   }
 
   function updateStoneVoices() {
     if (!stoneVoices) return;
     const now = audio.currentTime;
-    const reach = Math.min(S * 0.42, 330);
-    stones.forEach((stone, i) => {
-      const neighbors = stones.filter((other) => other !== stone);
-      const distance = neighbors.reduce((total, other) => total + Math.hypot(stone.x - other.x, stone.y - other.y), 0) / neighbors.length;
-      const proximity = Math.max(0, 1 - distance / reach);
-      const height = 1 - stone.y / H;
-      const breath = 0.88 + 0.12 * Math.sin(now * 0.42 + i * 1.6);
-      const { droneLevel, chordLevel, soft, pan } = stoneVoices[i];
-      droneLevel.gain.setTargetAtTime((0.016 + 0.015 * height + 0.01 * stone.energy) * breath, now, 0.45);
-      chordLevel.gain.setTargetAtTime(0.037 * proximity ** 1.3 * breath, now, 0.6);
-      soft.frequency.setTargetAtTime((220 + 540 * height + 180 * stone.energy) * stone.warmth, now, 0.28);
-      pan.pan.setTargetAtTime((stone.x / W * 2 - 1) * 0.66, now, 0.25);
+    updateBreath(now);
+    const distances = STONE_CHORDS.map(({ pair: [a, b] }) => Math.hypot(stones[a].x - stones[b].x, stones[a].y - stones[b].y));
+    const closest = distances.indexOf(Math.min(...distances));
+    const previousChord = activeStoneChord;
+    // Маленькая дрожь руки у границы не должна постоянно переключать аккорд.
+    if (activeStoneChord < 0 || distances[closest] + Math.max(10, S * 0.025) < distances[activeStoneChord]) {
+      activeStoneChord = closest;
+    }
+    const zone = playingStone.x / W;
+    const style = styleSelect.value === 'auto' ? Math.min(2, Math.floor(zone * 3)) : Number(styleSelect.value);
+    if (style !== activeStyle || previousChord !== activeStoneChord) {
+      activeStyle = style;
+      phraseStart = Math.max(now, lastPhraseNote + 0.32);
+      phraseEvent = 0;
+      phraseTurn = 0;
+    }
+    playStonePhrase(now);
+
+    const closeness = 1 - smoothBetween(S * 0.09, S * 0.44, distances[activeStoneChord]);
+    stonePads.forEach((pad, i) => {
+      const target = i === activeStoneChord ? (0.041 + 0.035 * closeness) * (0.85 + 0.25 * breathLevel) : 0;
+      pad.gain.setTargetAtTime(target, now, 0.65);
     });
+
+    stones.forEach((stone, i) => {
+      const x = stone.x / W;
+      const height = 1 - stone.y / H;
+      const center = 1 - smoothBetween(0.10, 0.42, Math.abs(x - 0.5));
+      const brightness = smoothBetween(0.53, 0.88, x);
+      const air = smoothBetween(0.24, 0.77, height);
+      const { droneLevel, overtoneLevel, breathDepth, soft, pan } = stoneVoices[i];
+      droneLevel.gain.setTargetAtTime(0.047 - 0.02 * air + 0.006 * stone.energy, now, 0.42);
+      overtoneLevel.gain.setTargetAtTime((0.004 + 0.032 * air + 0.025 * brightness) * (0.83 + i * 0.1), now, 0.48);
+      breathDepth.gain.setTargetAtTime(0.002 + 0.017 * center, now, 0.50);
+      soft.frequency.setTargetAtTime((200 + 410 * air + 900 * brightness) * stone.warmth, now, 0.32);
+      pan.pan.setTargetAtTime((x * 2 - 1) * 0.60, now, 0.28);
+    });
+  }
+
+  function updateBreath(now) {
+    const elapsed = Math.min(0.25, now - lastBreathTime);
+    lastBreathTime = now;
+    const duration = 10.4 + 1.6 * Math.sin(now * 0.091) + 0.55 * Math.sin(now * 0.17);
+    breathPhase = (breathPhase + elapsed / duration) % 1;
+    breathMix += ((breathing ? 1 : 0) - breathMix) * 0.17;
+    const inhale = 0.37;
+    const shape = breathPhase < inhale
+      ? smoothBetween(0, inhale, breathPhase)
+      : 1 - smoothBetween(inhale, 1, breathPhase);
+    breathLevel = 0.45 + (shape - 0.45) * breathMix;
+  }
+
+  function playStonePhrase(now) {
+    if (!soundOn) return;
+    const { events, period, attack, tail } = STYLES[activeStyle];
+    const [offset, voice, transpose, volume] = events[phraseEvent];
+    const when = phraseStart + offset;
+    if (when > now + 0.15) return;
+    const notes = STONE_CHORDS[activeStoneChord].phrase;
+    // На каждом втором круге заканчиваем фразу соседней нотой, оставаясь в аккорде.
+    const noteIndex = phraseTurn % 2 && phraseEvent === events.length - 1 ? (voice + 1) % notes.length : voice;
+    ring(noteHz(notes[noteIndex] + transpose), Math.max(0, when - now), volume, tail, attack);
+    lastPhraseNote = Math.max(when, now);
+    phraseEvent++;
+    if (phraseEvent === events.length) {
+      phraseEvent = 0;
+      phraseTurn++;
+      phraseStart = Math.max(phraseStart + period + 0.27 * Math.sin(phraseTurn * 2), now + 0.6);
+    }
   }
 
   // Рисунок раскладывается на пространственные гармоники, как звук на обертоны:
@@ -745,9 +875,11 @@
       noteLevels[k] = 0.2 + 0.4 * harmonics[k] / harmonics[strongest[0]];
     }
     const names = strongest.sort((a, b) => a - b).map((k) => LADDER[k].name);
-    chordLine.textContent = names.length
-      ? `Песок играет: ${[...new Set(names)].join(', ')}`
-      : 'Песок собирается';
+    if (soundOn && activeStoneChord >= 0) {
+      chordLine.textContent = `${STONE_CHORDS[activeStoneChord].name} · ${STYLES[activeStyle].name}`;
+    } else {
+      chordLine.textContent = names.length ? `Песок играет: ${[...new Set(names)].join(', ')}` : 'Песок собирается';
+    }
   }
 
   // Рисунок задаёт созвучие, вибрация задаёт громкость и яркость.
@@ -756,7 +888,7 @@
     const now = audio.currentTime;
     const breath = 0.85 + 0.15 * Math.sin(now * 0.31);
     bed.voices.forEach((level, i) => level.gain.setTargetAtTime(noteLevels[i], now, 0.9));
-    bed.chord.gain.setTargetAtTime((0.035 + 0.025 * drive) * breath, now, 0.4);
+    bed.chord.gain.setTargetAtTime((0.015 + 0.013 * drive) * breath, now, 0.4);
     bed.soft.frequency.setTargetAtTime(1600 + 800 * drive + 600 * excite, now, 0.4);
   }
 
@@ -766,12 +898,12 @@
     const now = audio.currentTime;
     const breath = 0.75 + 0.25 * Math.sin(now * 0.45);
     const level = 0.06 + 0.14 * drive * drive + 0.1 * excite + 0.55 * stir;
-    bed.rustle.gain.setTargetAtTime(level * breath, now, 0.12);
-    bed.band.frequency.setTargetAtTime(1000 + (n + m) * 40 + 500 * stir, now, 0.25);
+    bed.rustle.gain.setTargetAtTime(level * breath * (0.75 + 0.46 * breathLevel), now, 0.12);
+    bed.band.frequency.setTargetAtTime(900 + (n + m) * 40 + 500 * stir + 310 * breathLevel, now, 0.25);
     bed.pan.pan.setTargetAtTime(panX, now, 0.3);
   }
 
-  function ring(hz, delay = 0, volume = 1, length = 1) {
+  function ring(hz, delay = 0, volume = 1, length = 1, attack = 0.03) {
     if (!soundOn) return;
     const now = audio.currentTime + delay;
     // Кратные обертоны: нота сливается с фоном и не спорит с ним.
@@ -780,7 +912,7 @@
       const gain = audio.createGain();
       tone.frequency.value = hz * ratio;
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(level * volume, now + 0.03);
+      gain.gain.linearRampToValueAtTime(level * volume, now + attack);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + decay * length);
       tone.connect(gain).connect(output);
       tone.start(now);
@@ -803,6 +935,7 @@
     if (audio) {
       soundOn = !soundOn;
       output.gain.setTargetAtTime(soundOn ? 1 : 0, audio.currentTime, 0.05);
+      if (soundOn) activeStyle = -1;
     }
     startAudio();
     showSoundState();
@@ -834,6 +967,7 @@
     placeStone(stone, x, y);
     const speed = Math.hypot(stone.x - oldX, stone.y - oldY);
     stone.energy = Math.min(1, stone.energy + speed * 0.04);
+    playingStone = stone;
     lastTouch = performance.now();
     mark('stones');
   }
@@ -923,7 +1057,7 @@
   }
 
   addEventListener('keydown', (event) => {
-    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target === styleSelect) return;
     const key = KEYS[event.code];
     if (!key) return;
     startAudio();
@@ -985,9 +1119,9 @@
     if (now - lastRead > 120) {
       readout.textContent = `Вибрация ${Math.round(drive * 100)}%`;
       lastRead = now;
+      updateStoneVoices();
       readSand();
       updateBed();
-      updateStoneVoices();
     }
     requestAnimationFrame(frame);
   }
