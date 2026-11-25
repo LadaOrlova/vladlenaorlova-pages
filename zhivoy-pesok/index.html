@@ -176,11 +176,11 @@
   <button class="hints-toggle" id="hints-toggle" type="button" aria-expanded="true" aria-controls="hints">Свернуть</button>
   <div id="hints">
     <h1>Живой песок</h1>
-    <p class="lead" id="lead">Собери свою музыку из песка и звуков.</p>
+    <p class="lead" id="lead">Нажми на песок для звука, проведи по нему, чтобы услышать шорох.</p>
     <ul>
       <li data-action="rock" id="stone-controls" style="--pigment: var(--indigo)">Камни меняют гармонию.</li>
-      <li data-action="leaf" id="leaf-controls" style="--pigment: var(--moss)">Лист ближе к центру добавляет пульс.</li>
-      <li data-action="branch" id="branch-controls" style="--pigment: var(--pine)">Передвинь веточку, и прозвучит флейта.</li>
+      <li data-action="leaf" id="leaf-controls" style="--pigment: var(--moss)">К центру лист усиливает пульс, у края он стихает.</li>
+      <li data-action="branch" id="branch-controls" style="--pigment: var(--pine)">Перетащи веточку для фразы флейты. Нажми, чтобы включить или выключить флейту.</li>
       <li data-action="bowl" id="bowl-controls" style="--pigment: var(--ochre)">Коснись чаши, чтобы она зазвучала.</li>
     </ul>
     <p class="pulse-status" id="pulse-status">Пульс 0%</p>
@@ -190,7 +190,7 @@
 <button class="transport" id="sound" type="button">Включить звук</button>
 
 <script type="module">
-import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
+import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js?v=dunes';
 
 (() => {
   'use strict';
@@ -313,6 +313,7 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
   let n = 3, m = 5, targetN = 3, targetM = 5;
   let drive = 0.45;
   let excite = 0;
+  const duneTouch = { x: 0, y: 0, strength: 0 };
   let lastTouch = performance.now(), wander = 0;
   const strikes = [];
 
@@ -449,6 +450,54 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
     return unit;
   }
 
+  const dunes = gl.createProgram();
+  gl.attachShader(dunes, shader(gl.VERTEX_SHADER, `
+    attribute vec2 aCorner;
+    void main() { gl_Position = vec4(aCorner, 0.0, 1.0); }
+  `));
+  gl.attachShader(dunes, shader(gl.FRAGMENT_SHADER, `
+    precision highp float;
+    uniform vec2 uSize;
+    uniform vec3 uTouch;
+
+    float heightAt(vec2 p) {
+      vec2 d = p - uTouch.xy;
+      float bend = exp(-dot(d, d) * 20.0) * uTouch.z;
+      float crosswind = p.x + 0.47 * p.y;
+      float wind = p.y - 0.39 * p.x;
+      float fold = sin(crosswind * 5.4 + wind * 4.1);
+      float phase = wind * 30.0 + 2.35 * fold
+        + 0.72 * sin(crosswind * 10.7 - wind * 6.3)
+        + 0.59 * sin(wind * 8.5 - crosswind * 2.8);
+      phase += bend * (1.0 + sin(dot(d, vec2(11.0, -9.0))));
+      // A broad windward face and a shorter, steeper lee slope.
+      float ridge = sin(phase) + 0.29 * sin(2.0 * phase + 0.8);
+      float relief = 0.58 + 0.42 * sin(crosswind * 7.6 + wind * 5.0 + fold);
+      return ridge * relief * 0.026
+        + 0.008 * sin(wind * 13.0 + crosswind * 11.0)
+        + 0.0012 * sin(phase * 4.0 + crosswind * 13.0) * relief;
+    }
+
+    void main() {
+      vec2 p = (gl_FragCoord.xy - uSize * 0.5) / min(uSize.x, uSize.y);
+      float h = heightAt(p);
+      float hX = heightAt(p + vec2(0.002, 0.0));
+      float hY = heightAt(p + vec2(0.0, 0.002));
+      vec3 normal = normalize(vec3(h - hX, h - hY, 0.002));
+      float light = dot(normal, normalize(vec3(-0.37, 0.73, 0.57))) - 0.57;
+      float shadow = pow(clamp(-light * 1.10, 0.0, 1.0), 0.89) * 0.44;
+      float glow = smoothstep(0.01, 0.48, light) * 0.31;
+      gl_FragColor = vec4(vec3(light > 0.0 ? 1.0 : 0.0), shadow + glow);
+    }
+  `));
+  gl.linkProgram(dunes);
+  const aCorner = gl.getAttribLocation(dunes, 'aCorner');
+  const duneSize = gl.getUniformLocation(dunes, 'uSize');
+  const dunePointer = gl.getUniformLocation(dunes, 'uTouch');
+  const corners = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
   const program = gl.createProgram();
   gl.attachShader(program, shader(gl.VERTEX_SHADER, `
     attribute vec2 aPos;
@@ -460,7 +509,7 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
       vec2 c = aPos / uRes * 2.0 - 1.0;
       gl_Position = vec4(c.x, -c.y, 0.0, 1.0);
       gl_PointSize = aGrain.y * uDpr * 1.36;
-      vAlpha = mix(0.58, 0.36, aGrain.x) * aGrain.z;
+      vAlpha = mix(0.20, 0.12, aGrain.x) * aGrain.z;
     }
   `));
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
@@ -513,10 +562,26 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
 
   function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(dunes);
+    gl.disableVertexAttribArray(aGrain);
+    gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+    gl.enableVertexAttribArray(aCorner);
+    gl.vertexAttribPointer(aCorner, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(duneSize, canvas.width, canvas.height);
+    gl.uniform3f(dunePointer, duneTouch.x, duneTouch.y, duneTouch.strength);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.disableVertexAttribArray(aCorner);
+
+    gl.useProgram(program);
     gl.uniform2f(uRes, W, H);
     gl.uniform1f(uDpr, dpr);
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos);
+    gl.bindBuffer(gl.ARRAY_BUFFER, grainBuffer);
+    gl.enableVertexAttribArray(aGrain);
+    gl.vertexAttribPointer(aGrain, 3, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.POINTS, 0, COUNT);
   }
 
@@ -683,21 +748,25 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
     });
   }
 
-  let lastX = null, lastY = null;
-  addEventListener('pointermove', (event) => {
-    if (event.target instanceof Element && event.target.closest('.stone')) {
-      lastX = lastY = null;
-      return;
-    }
+  let lastX = null, lastY = null, lastMove = 0;
+  canvas.addEventListener('pointerleave', () => { lastX = lastY = null; });
+  canvas.addEventListener('pointermove', (event) => {
     lastTouch = performance.now();
     targetN = 1 + (event.clientX / W) * 6;
     targetM = targetN + 1 + (event.clientY / H) * 4;
-    if (lastX !== null) {
+    if (lastX !== null && event.timeStamp - lastMove < 160) {
       const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY);
       excite = Math.min(1, excite + speed * 0.0012);
+      instrument?.sweep(event.clientX / W, speed * 1000 / Math.max(12, event.timeStamp - lastMove));
+      if (!calm) {
+        duneTouch.x = (event.clientX - W * .5) / S;
+        duneTouch.y = (H * .5 - event.clientY) / S;
+        duneTouch.strength = Math.min(.72, duneTouch.strength + speed * .007);
+      }
     }
     lastX = event.clientX;
     lastY = event.clientY;
+    lastMove = event.timeStamp;
   });
 
   canvas.addEventListener('pointerdown', (event) => {
@@ -777,6 +846,7 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
       backlog -= TICK;
     }
     if (backlog > TICK) backlog = 0;
+    duneTouch.strength *= .94;
     draw();
     if (now - lastRead > 120) {
       readout.textContent = `Вибрация ${Math.round(drive * 100)}%`;
@@ -785,7 +855,7 @@ import { createSoundscape, leafPulse, stoneHarmony } from './soundscape.js';
     requestAnimationFrame(frame);
   }
 
-  // Высота панели меняется от шрифта и ширины окна, зона без песка следует за ней.
+  // Высота панели меняется от шрифта и ширины окна, предметы остаются доступны.
   new ResizeObserver(() => {
     measurePanel();
     for (const stone of objects) placeStone(stone, stone.x, stone.y);

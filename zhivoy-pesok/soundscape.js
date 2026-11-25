@@ -36,6 +36,40 @@ export async function createSoundscape(context) {
   const flutePan = context.createStereoPanner();
   fluteNear.connect(flutePan).connect(volume);
 
+  const sandNoise = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+  const grains = sandNoise.getChannelData(0);
+  let friction = 0;
+  for (let i = 0; i < grains.length; i++) {
+    const grain = Math.random() * 2 - 1;
+    friction += (Math.abs(grain) - friction) * .035;
+    grains[i] = grain * friction ** 2;
+  }
+  const brush = context.createBufferSource();
+  brush.buffer = sandNoise;
+  brush.loop = true;
+  const brushLow = context.createBiquadFilter();
+  brushLow.type = 'highpass';
+  brushLow.frequency.value = 320;
+  const brushHigh = context.createBiquadFilter();
+  brushHigh.type = 'lowpass';
+  brushHigh.Q.value = .18;
+  const brushPan = context.createStereoPanner();
+  const brushGain = context.createGain();
+  brushGain.gain.value = 0;
+  brush.connect(brushLow).connect(brushHigh).connect(brushPan).connect(brushGain).connect(volume);
+  brush.start();
+
+  function sweep(side, speed) {
+    if (!scene || scene.muted) return;
+    const now = context.currentTime;
+    const pressure = clamp(speed / 850);
+    brushPan.pan.setTargetAtTime((side * 2 - 1) * .46, now, .065);
+    brushHigh.frequency.setTargetAtTime(740 + pressure * 1750, now, .06);
+    brushGain.gain.cancelScheduledValues(now);
+    brushGain.gain.setTargetAtTime(Math.sqrt(pressure) * .55, now, .055);
+    brushGain.gain.setTargetAtTime(0, now + .09, .1);
+  }
+
   const loopLength = Math.min(...LOOPS.map((name) => sounds.get(name).duration));
   const start = context.currentTime + .05;
   const levels = new Map(LOOPS.map((name) => {
@@ -98,10 +132,21 @@ export async function createSoundscape(context) {
     } else {
       const pan = context.createStereoPanner();
       pan.pan.value = (side * 2 - 1) * .38;
-      source.connect(gain).connect(pan).connect(volume);
+      if (name === 'bowl-hit') {
+        source.playbackRate.value = 1.18;
+        const ring = context.createBiquadFilter();
+        ring.type = 'highshelf';
+        ring.frequency.value = 850;
+        ring.gain.value = 4;
+        gain.gain.value *= 1.6;
+        source.connect(ring).connect(gain);
+      } else {
+        source.connect(gain);
+      }
+      gain.connect(pan).connect(volume);
     }
     source.start(now);
   }
 
-  return { update, play };
+  return { update, play, sweep };
 }
