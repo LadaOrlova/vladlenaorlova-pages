@@ -42,10 +42,12 @@
   }
   .panel {
     position: fixed;
+    z-index: 2;
     left: clamp(20px, 4vw, 56px);
     bottom: clamp(20px, 4vw, 48px);
     width: min(25.5rem, calc(100vw - 40px));
   }
+  .panel-heading { display: flex; align-items: baseline; gap: .85rem; }
   h1 {
     margin: 0 0 .3em;
     font-size: clamp(2.7rem, 6vw, 4.4rem);
@@ -95,6 +97,35 @@
   }
   button:hover { color: var(--garnet); border-color: var(--garnet); }
   button:focus-visible { outline: 2px solid var(--garnet); outline-offset: 3px; }
+  .hints-toggle { font-size: .8rem; white-space: nowrap; }
+  .stone {
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: var(--size);
+    aspect-ratio: 1;
+    min-width: 44px;
+    border: 0;
+    border-radius: 50%;
+    touch-action: none;
+    cursor: grab;
+    transform: translate3d(var(--x), var(--y), 0) translate(-50%, -50%);
+  }
+  .stone::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url('./river-stones.png') var(--sprite) center / 300% 100% no-repeat;
+    filter: drop-shadow(2px 5px 3px #382d2454);
+    transform: rotate(var(--angle));
+    transition: filter .2s ease;
+  }
+  .stone[data-dragging] { cursor: grabbing; z-index: 2; }
+  .stone[data-dragging]::before { filter: drop-shadow(4px 8px 5px #382d245a); }
+  .stone-slate { --size: clamp(53px, 8vw, 92px); --sprite: 0%; --angle: -12deg; }
+  .stone-ochre { --size: clamp(48px, 7vw, 79px); --sprite: 50%; --angle: 19deg; }
+  .stone-granite { --size: clamp(44px, 6vw, 73px); --sprite: 100%; --angle: -23deg; }
   @media (hover: none) {
     .desktop-only { display: none; }
   }
@@ -105,18 +136,29 @@
 </head>
 <body>
 <canvas id="plate" role="img" aria-label="Песок на вибрирующей пластине. Узор меняется от движений курсора, нажатий, колеса мыши и клавиш."></canvas>
+<div id="stones" hidden>
+  <button class="stone stone-slate" type="button" aria-label="Сланец" aria-describedby="stone-controls"></button>
+  <button class="stone stone-ochre" type="button" aria-label="Кварцит" aria-describedby="stone-controls"></button>
+  <button class="stone stone-granite" type="button" aria-label="Гранит" aria-describedby="stone-controls"></button>
+</div>
 
 <section class="panel">
-  <h1>Живой песок</h1>
+  <div class="panel-heading">
+    <h1>Живой песок</h1>
+    <button class="hints-toggle" id="hints-toggle" type="button" aria-expanded="true" aria-controls="hints">Свернуть</button>
+  </div>
+  <div id="hints">
   <p class="lead" id="lead">Фоновый звук собирается из рисунка песка.</p>
   <ul>
     <li data-action="move" style="--pigment: var(--indigo)"><span id="move-hint">Веди курсором: узор меняется, песок шуршит</span></li>
     <li data-action="strike" style="--pigment: var(--garnet)">Нажми на песок: пойдёт волна и включится звук</li>
+    <li data-action="stones" id="stone-controls" style="--pigment: var(--ochre)">Двигай камни мышью, пальцем или стрелками. Сближай их, чтобы услышать аккорд.</li>
     <li data-action="wheel" class="desktop-only" style="--pigment: var(--ochre)">Крути колесо: вибрация сильнее или слабее</li>
     <li data-action="keys" class="desktop-only" style="--pigment: var(--pine)">Жми буквы: звучит созвучие, меняется фигура</li>
     <li data-action="tab" style="--pigment: var(--moss)">Смени вкладку и вернись: песок рассыплется</li>
   </ul>
   <p class="chord" id="chord">Песок собирается</p>
+  </div>
   <div class="status">
     <span id="readout">Вибрация 45%</span>
     <button id="sound" type="button">Включить звук</button>
@@ -132,6 +174,13 @@
   const readout = document.getElementById('readout');
   const chordLine = document.getElementById('chord');
   const soundButton = document.getElementById('sound');
+  const hints = document.getElementById('hints');
+  const hintsToggle = document.getElementById('hints-toggle');
+  hintsToggle.addEventListener('click', () => {
+    hints.hidden = !hints.hidden;
+    hintsToggle.setAttribute('aria-expanded', String(!hints.hidden));
+    hintsToggle.textContent = hints.hidden ? 'Подсказки' : 'Свернуть';
+  });
 
   const gl = canvas.getContext('webgl', {
     alpha: false,
@@ -160,7 +209,19 @@
 
   let W = 0, H = 0, S = 1, dpr = 1;
   let keepRight = 0, keepTop = 0;
-  let ux, uy, cnx, cmx, dnx, dmx, cny, cmy, dny, dmy;
+  let ux, uy;
+  const scales = [1, 2, 4];
+  let fields;
+  const stoneLayer = document.getElementById('stones');
+  const stones = Array.from(stoneLayer.querySelectorAll('.stone'), (element, i) => ({
+    element,
+    size: 0,
+    x: 0,
+    y: 0,
+    pitch: [82.5, 110, 165][i],
+    warmth: [0.85, 1, 1.18][i],
+    energy: 0,
+  }));
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -175,10 +236,13 @@
     uy = new Float32Array(H);
     for (let i = 0; i < W; i++) ux[i] = (i - W / 2) / S;
     for (let i = 0; i < H; i++) uy[i] = (i - H / 2) / S;
-    cnx = new Float32Array(W); cmx = new Float32Array(W);
-    dnx = new Float32Array(W); dmx = new Float32Array(W);
-    cny = new Float32Array(H); cmy = new Float32Array(H);
-    dny = new Float32Array(H); dmy = new Float32Array(H);
+    fields = scales.map((scale) => ({
+      scale,
+      cnx: new Float32Array(W), cmx: new Float32Array(W),
+      dnx: new Float32Array(W), dmx: new Float32Array(W),
+      cny: new Float32Array(H), cmy: new Float32Array(H),
+      dny: new Float32Array(H), dmy: new Float32Array(H),
+    }));
 
     measurePanel();
   }
@@ -192,9 +256,19 @@
   /* ---------- Песчинки ---------- */
 
   resize();
+  stoneLayer.hidden = false;
+  const stonePositions = W < 650
+    ? [[0.21, 0.23], [0.53, 0.35], [0.79, 0.19]]
+    : [[0.63, 0.34], [0.79, 0.51], [0.84, 0.28]];
+  stones.forEach((stone, i) => {
+    stone.size = stone.element.offsetWidth;
+    placeStone(stone, W * stonePositions[i][0], H * stonePositions[i][1]);
+  });
   // Считаем от экрана, а не от окна: вкладка может открыться в фоне с нулевым размером.
   const COUNT = Math.round(Math.min(170000, Math.max(50000, screen.width * screen.height * 0.11)));
   const HEAVY = Math.round(COUNT * 0.8);
+  const MEDIUM_GRAINS = Math.round(HEAVY * 0.64);
+  const FINE_GRAINS = Math.round(HEAVY * 0.89);
   const pos = new Float32Array(COUNT * 2);
   const vel = new Float32Array(COUNT * 2);
 
@@ -227,21 +301,21 @@
   const toHz = (a, b) => 165 * 6 ** (Math.log((a * a + b * b) / 5) / Math.log(193 / 5));
 
   function buildTables() {
-    const pn = Math.PI * n, pm = Math.PI * m;
     const gn = n / (n + m), gm = m / (n + m);
-    for (let i = 0; i < W; i++) {
-      const u = ux[i];
-      cnx[i] = Math.cos(pn * u);
-      cmx[i] = Math.cos(pm * u);
-      dnx[i] = -gn * Math.sin(pn * u);
-      dmx[i] = -gm * Math.sin(pm * u);
-    }
-    for (let i = 0; i < H; i++) {
-      const v = uy[i];
-      cny[i] = Math.cos(pn * v);
-      cmy[i] = Math.cos(pm * v);
-      dny[i] = -gn * Math.sin(pn * v);
-      dmy[i] = -gm * Math.sin(pm * v);
+    for (const { scale, cnx, cmx, dnx, dmx, cny, cmy, dny, dmy } of fields) {
+      const pn = Math.PI * n * scale, pm = Math.PI * m * scale;
+      for (let i = 0; i < W; i++) {
+        cnx[i] = Math.cos(pn * ux[i]);
+        cmx[i] = Math.cos(pm * ux[i]);
+        dnx[i] = -gn * Math.sin(pn * ux[i]);
+        dmx[i] = -gm * Math.sin(pm * ux[i]);
+      }
+      for (let i = 0; i < H; i++) {
+        cny[i] = Math.cos(pn * uy[i]);
+        cmy[i] = Math.cos(pm * uy[i]);
+        dny[i] = -gn * Math.sin(pn * uy[i]);
+        dmy[i] = -gm * Math.sin(pm * uy[i]);
+      }
     }
   }
 
@@ -251,6 +325,7 @@
     buildTables();
     excite *= 0.96;
     stir *= 0.965;
+    for (const stone of stones) stone.energy *= 0.95;
 
     // Если ничего не трогать, узор медленно плывёт сам, а созвучие пересобирается.
     if (!calm && performance.now() - lastTouch > 6000) {
@@ -271,6 +346,9 @@
       const p = i * 2;
       let x = pos[p], y = pos[p + 1], vx = vel[p], vy = vel[p + 1];
       const ix = x | 0, iy = y | 0;
+      // Тот же рисунок повторяется вдвое и вчетверо мельче, более тонким слоем песка.
+      const scale = i >= HEAVY || i < MEDIUM_GRAINS ? 0 : Number(i >= FINE_GRAINS) + 1;
+      const { cnx, cmx, dnx, dmx, cny, cmy, dny, dmy } = fields[scale];
 
       const a = cnx[ix], b = cmy[iy], c = cmx[ix], d = cny[iy];
       const f = a * b - c * d;
@@ -296,6 +374,20 @@
       // Подпись остаётся чистой: песок обтекает её.
       if (x < keepRight && y > keepTop) {
         if (keepRight - x < y - keepTop) vx += 0.9; else vy -= 0.9;
+      }
+
+      for (const stone of stones) {
+        const dx = x - stone.x, dy = y - stone.y;
+        const reach = stone.size * 1.25;
+        if (Math.abs(dx) >= reach || Math.abs(dy) >= reach) continue;
+        const distanceSquared = dx * dx + dy * dy;
+        if (distanceSquared >= reach * reach) continue;
+        const distance = Math.sqrt(distanceSquared) || 1;
+        const rim = stone.size * 0.37;
+        const force = (distance < rim ? 1.35 : -0.14) * (1 - distance / reach);
+        const swirl = stone.energy * (1 - distance / reach) * 0.7;
+        vx += (dx * force - dy * swirl) / distance;
+        vy += (dy * force + dx * swirl) / distance;
       }
 
       vx *= damp; vy *= damp;
@@ -378,8 +470,9 @@
   const grain = new Float32Array(COUNT * 3);
   for (let i = 0; i < COUNT; i++) {
     const light = i >= HEAVY;
-    grain[i * 3] = light ? 1 : 0;
-    grain[i * 3 + 1] = (light ? 1.3 : 1.5) + Math.random() * 1.1;
+    const fine = i < HEAVY && i >= MEDIUM_GRAINS;
+    grain[i * 3] = light ? 1 : fine ? 0.13 : 0;
+    grain[i * 3 + 1] = (fine ? 0.9 : light ? 1.3 : 1.5) + Math.random() * 1.1;
     grain[i * 3 + 2] = 0.82 + Math.random() * 0.36;
   }
 
@@ -420,7 +513,7 @@
   /* ---------- Звук ---------- */
 
   // Браузер включает звук только после клика или клавиши, движения мыши ему мало.
-  let audio = null, output = null, bed = null;
+  let audio = null, output = null, bed = null, stoneVoices = null;
   let soundOn = true;
 
   // Все ноты — обертоны одного низкого тона 55 Гц: их призвуки совпадают и не бьются.
@@ -455,6 +548,8 @@
     wet.gain.value = 0.7;
     output.connect(softRoom()).connect(wet).connect(limiter);
     bed = buildBed();
+    stoneVoices = buildStoneVoices();
+    updateStoneVoices();
     showSoundState();
   }
 
@@ -556,6 +651,53 @@
     grains.start();
 
     return { chord, soft, voices, band, rustle, pan };
+  }
+
+  function buildStoneVoices() {
+    const timbre = audio.createPeriodicWave(
+      new Float32Array(5),
+      Float32Array.from([0, 1, 0.21, 0.08, 0.03]),
+    );
+    return stones.map((stone, i) => {
+      const drone = audio.createOscillator();
+      const droneLevel = audio.createGain();
+      const chord = audio.createOscillator();
+      const chordLevel = audio.createGain();
+      const soft = audio.createBiquadFilter();
+      const pan = audio.createStereoPanner();
+      drone.setPeriodicWave(timbre);
+      drone.frequency.value = stone.pitch;
+      chord.setPeriodicWave(timbre);
+      chord.frequency.value = [220, 275, 330][i];
+      droneLevel.gain.value = 0;
+      chordLevel.gain.value = 0;
+      soft.type = 'lowpass';
+      soft.Q.value = 0.3;
+      drone.connect(droneLevel).connect(soft);
+      chord.connect(chordLevel).connect(soft);
+      soft.connect(pan).connect(output);
+      drone.start();
+      chord.start();
+      return { droneLevel, chordLevel, soft, pan };
+    });
+  }
+
+  function updateStoneVoices() {
+    if (!stoneVoices) return;
+    const now = audio.currentTime;
+    const reach = Math.min(S * 0.42, 330);
+    stones.forEach((stone, i) => {
+      const neighbors = stones.filter((other) => other !== stone);
+      const distance = neighbors.reduce((total, other) => total + Math.hypot(stone.x - other.x, stone.y - other.y), 0) / neighbors.length;
+      const proximity = Math.max(0, 1 - distance / reach);
+      const height = 1 - stone.y / H;
+      const breath = 0.88 + 0.12 * Math.sin(now * 0.42 + i * 1.6);
+      const { droneLevel, chordLevel, soft, pan } = stoneVoices[i];
+      droneLevel.gain.setTargetAtTime((0.016 + 0.015 * height + 0.01 * stone.energy) * breath, now, 0.45);
+      chordLevel.gain.setTargetAtTime(0.037 * proximity ** 1.3 * breath, now, 0.6);
+      soft.frequency.setTargetAtTime((220 + 540 * height + 180 * stone.energy) * stone.warmth, now, 0.28);
+      pan.pan.setTargetAtTime((stone.x / W * 2 - 1) * 0.66, now, 0.25);
+    });
   }
 
   // Рисунок раскладывается на пространственные гармоники, как звук на обертоны:
@@ -673,8 +815,63 @@
     if (row) row.classList.add('done');
   }
 
+  function placeStone(stone, x, y) {
+    const inset = stone.size / 2 + 4;
+    x = Math.max(inset, Math.min(W - inset, x));
+    y = Math.max(inset, Math.min(H - inset, y));
+    const panelEdge = keepTop - Math.max(0, inset - 22);
+    if (x < keepRight && y > panelEdge && panelEdge > inset) {
+      y = panelEdge;
+    }
+    stone.x = x;
+    stone.y = y;
+    stone.element.style.setProperty('--x', `${x}px`);
+    stone.element.style.setProperty('--y', `${y}px`);
+  }
+
+  function moveStone(stone, x, y) {
+    const oldX = stone.x, oldY = stone.y;
+    placeStone(stone, x, y);
+    const speed = Math.hypot(stone.x - oldX, stone.y - oldY);
+    stone.energy = Math.min(1, stone.energy + speed * 0.04);
+    lastTouch = performance.now();
+    mark('stones');
+  }
+
+  const arrowOffsets = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  for (const stone of stones) {
+    const { element } = stone;
+    let drag = null;
+    element.addEventListener('pointerdown', (event) => {
+      if (drag || event.button !== 0) return;
+      startAudio();
+      drag = { id: event.pointerId, x: event.clientX - stone.x, y: event.clientY - stone.y };
+      element.setPointerCapture(event.pointerId);
+      element.dataset.dragging = '';
+    });
+    element.addEventListener('pointermove', (event) => {
+      if (drag?.id === event.pointerId) moveStone(stone, event.clientX - drag.x, event.clientY - drag.y);
+    });
+    element.addEventListener('lostpointercapture', () => {
+      drag = null;
+      delete element.dataset.dragging;
+    });
+    element.addEventListener('keydown', (event) => {
+      const offset = arrowOffsets[event.key];
+      if (!offset) return;
+      event.preventDefault();
+      startAudio();
+      const step = event.shiftKey ? 30 : 12;
+      moveStone(stone, stone.x + offset[0] * step, stone.y + offset[1] * step);
+    });
+  }
+
   let lastX = null, lastY = null;
   addEventListener('pointermove', (event) => {
+    if (event.target instanceof Element && event.target.closest('.stone')) {
+      lastX = lastY = null;
+      return;
+    }
     lastTouch = performance.now();
     targetN = 1 + (event.clientX / W) * 6;
     targetM = targetN + 1 + (event.clientY / H) * 4;
@@ -761,6 +958,10 @@
       pos[i * 2] *= scaleX;
       pos[i * 2 + 1] *= scaleY;
     }
+    for (const stone of stones) {
+      stone.size = stone.element.offsetWidth;
+      placeStone(stone, stone.x * scaleX, stone.y * scaleY);
+    }
   });
 
   /* ---------- Цикл ---------- */
@@ -786,12 +987,16 @@
       lastRead = now;
       readSand();
       updateBed();
+      updateStoneVoices();
     }
     requestAnimationFrame(frame);
   }
 
   // Высота панели меняется от шрифта и ширины окна, зона без песка следует за ней.
-  new ResizeObserver(measurePanel).observe(panel);
+  new ResizeObserver(() => {
+    measurePanel();
+    for (const stone of stones) placeStone(stone, stone.x, stone.y);
+  }).observe(panel);
 
   if (calm) for (let i = 0; i < 240; i++) step();
   requestAnimationFrame(frame);
