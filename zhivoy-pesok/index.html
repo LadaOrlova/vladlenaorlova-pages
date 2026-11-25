@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Живой песок</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Piazzolla:ital,opsz,wght@0,8..30,300..600;1,8..30,300..600&display=swap">
+<style>
+  :root {
+    --ink: #1b2a4a;
+    --soft: #56606f;
+    --indigo: #27406e;
+    --garnet: #7b2337;
+    --ochre: #a87518;
+    --moss: #5e6b34;
+    --pine: #1f4d40;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body {
+    font-family: Piazzolla, Georgia, serif;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  .panel {
+    position: fixed;
+    left: clamp(20px, 4vw, 56px);
+    bottom: clamp(20px, 4vw, 48px);
+    width: min(25.5rem, calc(100vw - 40px));
+  }
+  h1 {
+    margin: 0 0 .3em;
+    font-size: clamp(2.7rem, 6vw, 4.4rem);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -.01em;
+  }
+  .lead { margin: 0 0 .9rem; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: grid;
+    grid-template-columns: .7rem 1fr;
+    gap: .65rem;
+    align-items: baseline;
+    padding: .1rem 0;
+    color: var(--soft);
+    transition: color .4s;
+  }
+  li::before {
+    content: "";
+    width: .62rem;
+    height: .62rem;
+    border: 1.5px solid var(--pigment);
+    border-radius: 50%;
+    transition: background-color .4s;
+  }
+  li.done { color: var(--ink); }
+  li.done::before { background-color: var(--pigment); }
+  .chord { margin: .9rem 0 0; }
+  .status {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-top: .1rem;
+    font-variant-numeric: tabular-nums;
+  }
+  button {
+    padding: 0;
+    font: inherit;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    border-bottom: 1.5px solid var(--indigo);
+    cursor: pointer;
+  }
+  button:hover { color: var(--garnet); border-color: var(--garnet); }
+  button:focus-visible { outline: 2px solid var(--garnet); outline-offset: 3px; }
+  @media (hover: none) {
+    .desktop-only { display: none; }
+  }
+  @media (max-height: 560px) {
+    .lead { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="plate" role="img" aria-label="Песок на вибрирующей пластине. Узор меняется от движений курсора, нажатий, колеса мыши и клавиш."></canvas>
+
+<section class="panel">
+  <h1>Живой песок</h1>
+  <p class="lead" id="lead">Фоновый звук собирается из рисунка песка.</p>
+  <ul>
+    <li data-action="move" style="--pigment: var(--indigo)"><span id="move-hint">Веди курсором: узор меняется, песок шуршит</span></li>
+    <li data-action="strike" style="--pigment: var(--garnet)">Нажми на песок: пойдёт волна и включится звук</li>
+    <li data-action="wheel" class="desktop-only" style="--pigment: var(--ochre)">Крути колесо: вибрация сильнее или слабее</li>
+    <li data-action="keys" class="desktop-only" style="--pigment: var(--pine)">Жми буквы: звучит созвучие, меняется фигура</li>
+    <li data-action="tab" style="--pigment: var(--moss)">Смени вкладку и вернись: песок рассыплется</li>
+  </ul>
+  <p class="chord" id="chord">Песок собирается</p>
+  <div class="status">
+    <span id="readout">Вибрация 45%</span>
+    <button id="sound" type="button">Включить звук</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('plate');
+  const panel = document.querySelector('.panel');
+  const readout = document.getElementById('readout');
+  const chordLine = document.getElementById('chord');
+  const soundButton = document.getElementById('sound');
+
+  const gl = canvas.getContext('webgl', {
+    alpha: false,
+    antialias: false,
+    powerPreference: 'high-performance',
+  });
+  if (!gl) {
+    document.getElementById('lead').textContent =
+      'Этот браузер не запускает WebGL. Включи аппаратное ускорение или открой страницу в другом браузере.';
+    return;
+  }
+
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (matchMedia('(hover: none)').matches) {
+    document.getElementById('move-hint').textContent = 'Веди пальцем: узор меняется, песок шуршит';
+  }
+
+  const PIGMENT = {
+    indigo: [0.153, 0.251, 0.431],
+    pine: [0.122, 0.302, 0.251],
+    garnet: [0.482, 0.137, 0.216],
+  };
+  const OCHRE = [0.76, 0.58, 0.25];
+
+  /* ---------- Размеры и таблицы волны ---------- */
+
+  let W = 0, H = 0, S = 1, dpr = 1;
+  let keepRight = 0, keepTop = 0;
+  let ux, uy, cnx, cmx, dnx, dmx, cny, cmy, dny, dmy;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(innerWidth, 2);
+    H = Math.max(innerHeight, 2);
+    S = Math.min(W, H);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    ux = new Float32Array(W);
+    uy = new Float32Array(H);
+    for (let i = 0; i < W; i++) ux[i] = (i - W / 2) / S;
+    for (let i = 0; i < H; i++) uy[i] = (i - H / 2) / S;
+    cnx = new Float32Array(W); cmx = new Float32Array(W);
+    dnx = new Float32Array(W); dmx = new Float32Array(W);
+    cny = new Float32Array(H); cmy = new Float32Array(H);
+    dny = new Float32Array(H); dmy = new Float32Array(H);
+
+    measurePanel();
+  }
+
+  function measurePanel() {
+    const box = panel.getBoundingClientRect();
+    keepRight = box.right + 22;
+    keepTop = box.top - 22;
+  }
+
+  /* ---------- Песчинки ---------- */
+
+  resize();
+  // Считаем от экрана, а не от окна: вкладка может открыться в фоне с нулевым размером.
+  const COUNT = Math.round(Math.min(170000, Math.max(50000, screen.width * screen.height * 0.11)));
+  const HEAVY = Math.round(COUNT * 0.8);
+  const pos = new Float32Array(COUNT * 2);
+  const vel = new Float32Array(COUNT * 2);
+
+  function scatter() {
+    for (let i = 0; i < COUNT; i++) {
+      const x = Math.random() * W;
+      pos[i * 2] = x;
+      pos[i * 2 + 1] = Math.random() * (x < keepRight ? Math.max(keepTop, 1) : H);
+      vel[i * 2] = 0;
+      vel[i * 2 + 1] = 0;
+    }
+  }
+  scatter();
+
+  const NOISE = new Float32Array(1 << 16);
+  for (let i = 0; i < NOISE.length; i++) NOISE[i] = Math.random() * 2 - 1;
+
+  /* ---------- Состояние пластины ---------- */
+
+  let n = 3, m = 5, targetN = 3, targetM = 5;
+  let drive = 0.45;
+  let excite = 0;
+  let stir = 0, panX = 0;
+  let lastTouch = performance.now(), wander = 0;
+  const strikes = [];
+  const heavyColor = PIGMENT.indigo.slice();
+  let heavyTarget = PIGMENT.indigo;
+
+  // Чем мельче узор, тем выше тон. Диапазон 165–990 Гц мягкий и слышен на ноутбуке.
+  const toHz = (a, b) => 165 * 6 ** (Math.log((a * a + b * b) / 5) / Math.log(193 / 5));
+
+  function buildTables() {
+    const pn = Math.PI * n, pm = Math.PI * m;
+    const gn = n / (n + m), gm = m / (n + m);
+    for (let i = 0; i < W; i++) {
+      const u = ux[i];
+      cnx[i] = Math.cos(pn * u);
+      cmx[i] = Math.cos(pm * u);
+      dnx[i] = -gn * Math.sin(pn * u);
+      dmx[i] = -gm * Math.sin(pm * u);
+    }
+    for (let i = 0; i < H; i++) {
+      const v = uy[i];
+      cny[i] = Math.cos(pn * v);
+      cmy[i] = Math.cos(pm * v);
+      dny[i] = -gn * Math.sin(pn * v);
+      dmy[i] = -gm * Math.sin(pm * v);
+    }
+  }
+
+  function step() {
+    n += (targetN - n) * 0.06;
+    m += (targetM - m) * 0.06;
+    buildTables();
+    excite *= 0.96;
+    stir *= 0.965;
+
+    // Если ничего не трогать, узор медленно плывёт сам, а созвучие пересобирается.
+    if (!calm && performance.now() - lastTouch > 6000) {
+      wander += 0.00035;
+      const driftN = 4 + 3 * Math.sin(wander);
+      const driftM = driftN + 3 + 2 * Math.sin(wander * 1.618 + 1);
+      targetN += (driftN - targetN) * 0.002;
+      targetM += (driftM - targetM) * 0.002;
+    }
+
+    const shake = (0.35 + 2.4 * drive * drive + excite * 2.2) * (calm ? 0.5 : 1);
+    const pull = 0.34;
+    const damp = 0.82;
+    const maxX = W - 1, maxY = H - 1;
+    let ni = (Math.random() * 65536) | 0;
+
+    for (let i = 0; i < COUNT; i++) {
+      const p = i * 2;
+      let x = pos[p], y = pos[p + 1], vx = vel[p], vy = vel[p + 1];
+      const ix = x | 0, iy = y | 0;
+
+      const a = cnx[ix], b = cmy[iy], c = cmx[ix], d = cny[iy];
+      const f = a * b - c * d;
+      const gx = dnx[ix] * b - dmx[ix] * d;
+      const gy = a * dmy[iy] - c * dny[iy];
+      const af = f < 0 ? -f : f;
+
+      let drift, jolt;
+      if (i < HEAVY) {
+        // Тяжёлый песок уходит туда, где пластина не движется.
+        drift = -pull * f;
+        // Небольшая дрожь и на узловых линиях: линия остаётся песком, а не нитью.
+        jolt = shake * (af + 0.09);
+      } else {
+        // Лёгкая пыль собирается на пучностях, как в опытах Фарадея.
+        drift = pull * 0.55 * f;
+        jolt = shake * 0.5 * Math.max(0.12, 1.15 - af);
+      }
+
+      ni = (ni + 1) & 65535; vx += drift * gx + NOISE[ni] * jolt;
+      ni = (ni + 1) & 65535; vy += drift * gy + NOISE[ni] * jolt;
+
+      // Подпись остаётся чистой: песок обтекает её.
+      if (x < keepRight && y > keepTop) {
+        if (keepRight - x < y - keepTop) vx += 0.9; else vy -= 0.9;
+      }
+
+      vx *= damp; vy *= damp;
+      x += vx; y += vy;
+
+      if (x < 0) { x = 0; vx = -vx; } else if (x > maxX) { x = maxX; vx = -vx; }
+      if (y < 0) { y = 0; vy = -vy; } else if (y > maxY) { y = maxY; vy = -vy; }
+
+      pos[p] = x; pos[p + 1] = y; vel[p] = vx; vel[p + 1] = vy;
+    }
+
+    applyStrikes();
+  }
+
+  function applyStrikes() {
+    const band = 30;
+    for (let s = strikes.length - 1; s >= 0; s--) {
+      const wave = strikes[s];
+      const inner = Math.max(0, wave.r - band), outer = wave.r + band;
+      const inner2 = inner * inner, outer2 = outer * outer;
+      for (let i = 0; i < COUNT; i++) {
+        const p = i * 2;
+        const dx = pos[p] - wave.x, dy = pos[p + 1] - wave.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > outer2 || d2 < inner2) continue;
+        const dist = Math.sqrt(d2) || 1;
+        const kick = wave.power * (1 - Math.abs(dist - wave.r) / band) / dist;
+        vel[p] += dx * kick;
+        vel[p + 1] += dy * kick;
+      }
+      wave.r += 13;
+      wave.power *= 0.965;
+      if (wave.power < 0.35 || wave.r > W + H) strikes.splice(s, 1);
+    }
+  }
+
+  /* ---------- Рисование ---------- */
+
+  function shader(type, source) {
+    const unit = gl.createShader(type);
+    gl.shaderSource(unit, source);
+    gl.compileShader(unit);
+    if (!gl.getShaderParameter(unit, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(unit));
+    }
+    return unit;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, shader(gl.VERTEX_SHADER, `
+    attribute vec2 aPos;
+    attribute vec3 aGrain;
+    uniform vec2 uRes;
+    uniform float uDpr;
+    uniform vec3 uHeavy;
+    uniform vec3 uLight;
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      vec2 c = aPos / uRes * 2.0 - 1.0;
+      gl_Position = vec4(c.x, -c.y, 0.0, 1.0);
+      gl_PointSize = aGrain.y * uDpr;
+      vColor = mix(uHeavy, uLight, aGrain.x) * aGrain.z;
+      vAlpha = mix(0.92, 0.6, aGrain.x);
+    }
+  `));
+  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      if (d > 0.5) discard;
+      gl_FragColor = vec4(vColor, vAlpha * smoothstep(0.5, 0.3, d));
+    }
+  `));
+  gl.linkProgram(program);
+  gl.useProgram(program);
+
+  const grain = new Float32Array(COUNT * 3);
+  for (let i = 0; i < COUNT; i++) {
+    const light = i >= HEAVY;
+    grain[i * 3] = light ? 1 : 0;
+    grain[i * 3 + 1] = (light ? 1.3 : 1.5) + Math.random() * 1.1;
+    grain[i * 3 + 2] = 0.82 + Math.random() * 0.36;
+  }
+
+  const posBuffer = gl.createBuffer();
+  const aPos = gl.getAttribLocation(program, 'aPos');
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, pos.byteLength, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const grainBuffer = gl.createBuffer();
+  const aGrain = gl.getAttribLocation(program, 'aGrain');
+  gl.bindBuffer(gl.ARRAY_BUFFER, grainBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, grain, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(aGrain);
+  gl.vertexAttribPointer(aGrain, 3, gl.FLOAT, false, 0, 0);
+
+  const uRes = gl.getUniformLocation(program, 'uRes');
+  const uDpr = gl.getUniformLocation(program, 'uDpr');
+  const uHeavy = gl.getUniformLocation(program, 'uHeavy');
+  gl.uniform3fv(gl.getUniformLocation(program, 'uLight'), OCHRE);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.clearColor(1, 1, 1, 1);
+
+  function draw() {
+    for (let i = 0; i < 3; i++) heavyColor[i] += (heavyTarget[i] - heavyColor[i]) * 0.05;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uRes, W, H);
+    gl.uniform1f(uDpr, dpr);
+    gl.uniform3fv(uHeavy, heavyColor);
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos);
+    gl.drawArrays(gl.POINTS, 0, COUNT);
+  }
+
+  /* ---------- Звук ---------- */
+
+  // Браузер включает звук только после клика или клавиши, движения мыши ему мало.
+  let audio = null, output = null, bed = null;
+  let soundOn = true;
+
+  // Все ноты — обертоны одного низкого тона 55 Гц: их призвуки совпадают и не бьются.
+  // По расчёту шершавости такой строй с расстановкой нот втрое мягче пентатоники.
+  const OVERTONES = [4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24];
+  const TONE_NAMES = { 1: 'ля', 3: 'ми', 5: 'до-диез', 9: 'си', 15: 'соль-диез' };
+  const LADDER = OVERTONES.map((overtone) => {
+    let tone = overtone;
+    while (tone % 2 === 0) tone /= 2;
+    return { hz: 55 * overtone, name: TONE_NAMES[tone] };
+  });
+  const NOTES = LADDER.length;
+  const CHORD_SIZE = 3;
+  const profile = new Float32Array(128);
+  const harmonics = new Float32Array(NOTES);
+  const noteLevels = new Float32Array(NOTES);
+
+  function startAudio() {
+    if (audio) {
+      if (audio.state === 'suspended') audio.resume();
+      return;
+    }
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    const limiter = audio.createDynamicsCompressor();
+    limiter.threshold.value = -12;
+    limiter.ratio.value = 8;
+    const master = audio.createGain();
+    master.gain.value = 0.55;
+    output = audio.createGain();
+    output.connect(limiter).connect(master).connect(softCeiling()).connect(audio.destination);
+    const wet = audio.createGain();
+    wet.gain.value = 0.7;
+    output.connect(softRoom()).connect(wet).connect(limiter);
+    bed = buildBed();
+    showSoundState();
+  }
+
+  // Отзвук большой мягкой комнаты: чем дальше хвост, тем он глуше.
+  function softRoom() {
+    const length = Math.round(audio.sampleRate * 3.2);
+    const impulse = audio.createBuffer(2, length, audio.sampleRate);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = impulse.getChannelData(channel);
+      let smooth = 0;
+      for (let i = 0; i < length; i++) {
+        const t = i / length;
+        smooth += (Math.random() * 2 - 1 - smooth) * (0.35 * (1 - t) + 0.03);
+        data[i] = smooth * (1 - t) ** 3;
+      }
+    }
+    const room = audio.createConvolver();
+    room.buffer = impulse;
+    return room;
+  }
+
+  // Тихие звуки проходят без изменений, громкие мягко упираются в потолок и не трещат.
+  function softCeiling() {
+    const shaper = audio.createWaveShaper();
+    const curve = new Float32Array(2049);
+    for (let i = 0; i < curve.length; i++) {
+      const x = i / 1024 - 1;
+      const size = Math.abs(x);
+      curve[i] = size < 0.7 ? x : Math.sign(x) * (0.7 + 0.25 * Math.tanh((size - 0.7) / 0.25));
+    }
+    shaper.curve = curve;
+    return shaper;
+  }
+
+  // Клавиши и клики берут ближайшую ноту из той же лестницы, что и фон.
+  function toScale(hz) {
+    let best = LADDER[0].hz;
+    for (const { hz: note } of LADDER) {
+      if (Math.abs(Math.log(note / hz)) < Math.abs(Math.log(best / hz))) best = note;
+    }
+    return best;
+  }
+
+  // Внизу близкие ноты сливаются в гул, поэтому чем ниже нота, тем шире интервал.
+  function wellSpaced(a, b) {
+    const low = Math.min(a, b), high = Math.max(a, b);
+    return high / low >= (low < 200 ? 1.5 : low < 400 ? 1.25 : 1.12);
+  }
+
+  function sandBuffer() {
+    const length = audio.sampleRate * 3;
+    const buffer = audio.createBuffer(1, length, audio.sampleRate);
+    const data = buffer.getChannelData(0);
+    let tail = 0;
+    for (let i = 0; i < length; i++) {
+      // Частые мягкие касания с длинным хвостом звучат как мелкий песок, без щелчков.
+      const touch = Math.random() < 0.12 ? Math.random() * 2 - 1 : 0;
+      tail = tail * 0.85 + touch;
+      data[i] = Math.tanh(tail * 1.2);
+    }
+    return buffer;
+  }
+
+  function buildBed() {
+    const chord = audio.createGain();
+    const soft = audio.createBiquadFilter();
+    chord.gain.value = 0;
+    soft.type = 'lowpass';
+    chord.connect(soft).connect(output);
+
+    // Почти чистый тон с лёгким призвуком: фон остаётся воздушным.
+    const timbre = audio.createPeriodicWave(
+      new Float32Array(5),
+      Float32Array.from([0, 1, 0.15, 0.04, 0]),
+    );
+    const voices = LADDER.map(({ hz }, i) => {
+      const tone = audio.createOscillator();
+      const level = audio.createGain();
+      tone.setPeriodicWave(timbre);
+      tone.frequency.value = hz;
+      // Расстройка в один цент оживляет тон и не даёт заметных биений.
+      tone.detune.value = i % 3 - 1;
+      level.gain.value = 0;
+      tone.connect(level).connect(chord);
+      tone.start();
+      return level;
+    });
+
+    const grains = audio.createBufferSource();
+    const band = audio.createBiquadFilter();
+    const rustle = audio.createGain();
+    const pan = audio.createStereoPanner();
+    grains.buffer = sandBuffer();
+    grains.loop = true;
+    band.type = 'bandpass';
+    band.Q.value = 0.4;
+    rustle.gain.value = 0;
+    grains.connect(band).connect(rustle).connect(pan).connect(output);
+    grains.start();
+
+    return { chord, soft, voices, band, rustle, pan };
+  }
+
+  // Рисунок раскладывается на пространственные гармоники, как звук на обертоны:
+  // крупный узор даёт низкие ноты, мелкий высокие. Диагонали есть у всех фигур,
+  // на проекции они ложатся ровным фоном и на аккорд не влияют.
+  function readSand() {
+    const bins = profile.length;
+    const limit = keepTop > 80 ? keepTop : H;
+    const scale = bins / W;
+    let sampled = 0;
+    profile.fill(0);
+    for (let i = 0; i < HEAVY; i += 2) {
+      if (pos[i * 2 + 1] > limit) continue;
+      profile[(pos[i * 2] * scale) | 0]++;
+      sampled++;
+    }
+    const mean = sampled / bins || 1;
+    for (let k = 0; k < NOTES; k++) {
+      const stepAngle = 2 * Math.PI * (k + 1) * (W / S) / bins;
+      let re = 0, im = 0;
+      for (let b = 0; b < bins; b++) {
+        // Края окна сглажены: иначе их перепад заглушает гармоники самого узора.
+        const fade = 0.5 - 0.5 * Math.cos(2 * Math.PI * (b + 0.5) / bins);
+        const value = (profile[b] / mean - 1) * fade;
+        const angle = stepAngle * (b + 0.5);
+        re += value * Math.cos(angle);
+        im += value * Math.sin(angle);
+      }
+      // Мелкие детали слабее крупных, поэтому подтягиваем их, чтобы верх тоже звучал.
+      const size = Math.hypot(re, im) / bins * (k + 1) ** 0.7;
+      harmonics[k] += (size - harmonics[k]) * 0.15;
+    }
+
+    const order = [...harmonics.keys()].sort((a, b) => harmonics[b] - harmonics[a]);
+    const strongest = [];
+    for (const k of order) {
+      if (strongest.length === CHORD_SIZE || harmonics[k] <= 0.04) break;
+      if (strongest.every((other) => wellSpaced(LADDER[k].hz, LADDER[other].hz))) {
+        strongest.push(k);
+      }
+    }
+
+    noteLevels.fill(0);
+    for (const k of strongest) {
+      noteLevels[k] = 0.2 + 0.4 * harmonics[k] / harmonics[strongest[0]];
+    }
+    const names = strongest.sort((a, b) => a - b).map((k) => LADDER[k].name);
+    chordLine.textContent = names.length
+      ? `Песок играет: ${[...new Set(names)].join(', ')}`
+      : 'Песок собирается';
+  }
+
+  // Рисунок задаёт созвучие, вибрация задаёт громкость и яркость.
+  function updateBed() {
+    if (!bed) return;
+    const now = audio.currentTime;
+    const breath = 0.85 + 0.15 * Math.sin(now * 0.31);
+    bed.voices.forEach((level, i) => level.gain.setTargetAtTime(noteLevels[i], now, 0.9));
+    bed.chord.gain.setTargetAtTime((0.035 + 0.025 * drive) * breath, now, 0.4);
+    bed.soft.frequency.setTargetAtTime(1600 + 800 * drive + 600 * excite, now, 0.4);
+  }
+
+  // Шорох плавно нарастает от движения, долго затихает и медленно дышит, как волны.
+  function updateRustle() {
+    if (!bed) return;
+    const now = audio.currentTime;
+    const breath = 0.75 + 0.25 * Math.sin(now * 0.45);
+    const level = 0.06 + 0.14 * drive * drive + 0.1 * excite + 0.55 * stir;
+    bed.rustle.gain.setTargetAtTime(level * breath, now, 0.12);
+    bed.band.frequency.setTargetAtTime(1000 + (n + m) * 40 + 500 * stir, now, 0.25);
+    bed.pan.pan.setTargetAtTime(panX, now, 0.3);
+  }
+
+  function ring(hz, delay = 0, volume = 1, length = 1) {
+    if (!soundOn) return;
+    const now = audio.currentTime + delay;
+    // Кратные обертоны: нота сливается с фоном и не спорит с ним.
+    for (const [ratio, level, decay] of [[1, 0.2, 2.6], [2, 0.05, 1.4], [3, 0.012, 0.7]]) {
+      const tone = audio.createOscillator();
+      const gain = audio.createGain();
+      tone.frequency.value = hz * ratio;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(level * volume, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decay * length);
+      tone.connect(gain).connect(output);
+      tone.start(now);
+      tone.stop(now + decay * length + 0.05);
+    }
+  }
+
+  // Клавиша играет созвучие мягким перебором, ноты берутся из той же лестницы, что и фон.
+  function ringChord(hz, shape) {
+    const root = toScale(hz > 660 ? hz / 2 : hz);
+    const notes = new Set(shape.map((ratio) => toScale(root * ratio)));
+    [...notes].forEach((note, i) => ring(note, i * 0.08, 0.55, 2.5));
+  }
+
+  function showSoundState() {
+    soundButton.textContent = audio && soundOn ? 'Выключить звук' : 'Включить звук';
+  }
+
+  soundButton.addEventListener('click', () => {
+    if (audio) {
+      soundOn = !soundOn;
+      output.gain.setTargetAtTime(soundOn ? 1 : 0, audio.currentTime, 0.05);
+    }
+    startAudio();
+    showSoundState();
+  });
+
+  /* ---------- Действия в браузере ---------- */
+
+  function mark(action) {
+    const row = document.querySelector(`[data-action="${action}"]`);
+    if (row) row.classList.add('done');
+  }
+
+  let lastX = null, lastY = null;
+  addEventListener('pointermove', (event) => {
+    lastTouch = performance.now();
+    targetN = 1 + (event.clientX / W) * 6;
+    targetM = targetN + 1 + (event.clientY / H) * 4;
+    if (lastX !== null) {
+      const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY);
+      excite = Math.min(1, excite + speed * 0.0012);
+      stir = Math.min(1, stir + speed * 0.005);
+      if (speed > 0) mark('move');
+    }
+    panX = (event.clientX / W * 2 - 1) * 0.7;
+    lastX = event.clientX;
+    lastY = event.clientY;
+  });
+
+  canvas.addEventListener('pointerdown', (event) => {
+    startAudio();
+    lastTouch = performance.now();
+    strikes.push({ x: event.clientX, y: event.clientY, r: 0, power: calm ? 3 : 6 });
+    if (strikes.length > 4) strikes.shift();
+    excite = Math.min(1, excite + 0.4);
+    ring(toScale(toHz(n, m)));
+    mark('strike');
+  });
+
+  addEventListener('wheel', (event) => {
+    drive = Math.min(1, Math.max(0.05, drive - event.deltaY * 0.0008));
+    mark('wheel');
+  }, { passive: true });
+
+  const pairs = [];
+  for (let a = 1; a <= 7; a++) {
+    for (let gap = 1; gap <= 5; gap++) pairs.push([a, a + gap]);
+  }
+  pairs.sort((p, q) => toHz(p[0], p[1]) - toHz(q[0], q[1]));
+
+  const KEYS = {};
+  let keyIndex = 0;
+  // У каждого ряда свой характер: открытое созвучие, тёплое и светлое.
+  for (const [letters, pigment, shape] of [
+    ['ZXCVBNM', PIGMENT.indigo, [1, 3 / 2, 2]],
+    ['ASDFGHJKL', PIGMENT.pine, [1, 5 / 4, 3 / 2]],
+    ['QWERTYUIOP', PIGMENT.garnet, [1, 4 / 3, 5 / 3]],
+  ]) {
+    for (const letter of letters) {
+      const pair = pairs[Math.round(keyIndex * (pairs.length - 1) / 25)];
+      KEYS['Key' + letter] = { n: pair[0], m: pair[1], pigment, shape };
+      keyIndex++;
+    }
+  }
+
+  addEventListener('keydown', (event) => {
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = KEYS[event.code];
+    if (!key) return;
+    startAudio();
+    lastTouch = performance.now();
+    targetN = key.n;
+    targetM = key.m;
+    heavyTarget = key.pigment;
+    excite = 1;
+    ringChord(toHz(key.n, key.m), key.shape);
+    mark('keys');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') {
+      // Фон не играет из скрытой вкладки.
+      if (audio) audio.suspend();
+      return;
+    }
+    if (audio) audio.resume();
+    scatter();
+    excite = 1;
+    mark('tab');
+  });
+
+  addEventListener('resize', () => {
+    const oldW = W, oldH = H;
+    resize();
+    // Песок растягивается вместе с окном и не остаётся в прежних границах.
+    const scaleX = (W - 1) / Math.max(oldW - 1, 1);
+    const scaleY = (H - 1) / Math.max(oldH - 1, 1);
+    for (let i = 0; i < COUNT; i++) {
+      pos[i * 2] *= scaleX;
+      pos[i * 2 + 1] *= scaleY;
+    }
+  });
+
+  /* ---------- Цикл ---------- */
+
+  const TICK = 1000 / 60;
+  let last = performance.now(), backlog = 0, lastRead = 0, lastRustle = 0;
+
+  function frame(now) {
+    backlog += Math.min(now - last, 50);
+    last = now;
+    for (let done = 0; backlog >= TICK && done < 2; done++) {
+      step();
+      backlog -= TICK;
+    }
+    if (backlog > TICK) backlog = 0;
+    draw();
+    if (now - lastRustle > 30) {
+      updateRustle();
+      lastRustle = now;
+    }
+    if (now - lastRead > 120) {
+      readout.textContent = `Вибрация ${Math.round(drive * 100)}%`;
+      lastRead = now;
+      readSand();
+      updateBed();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Высота панели меняется от шрифта и ширины окна, зона без песка следует за ней.
+  new ResizeObserver(measurePanel).observe(panel);
+
+  if (calm) for (let i = 0; i < 240; i++) step();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
